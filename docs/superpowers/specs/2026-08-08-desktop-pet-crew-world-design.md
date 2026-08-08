@@ -50,6 +50,8 @@ export interface StatusInput {
   pendingApproval: boolean
   failed: boolean
   unread: boolean
+  /** When the agent entered its current condition, for a stable tie-break. */
+  since: number
 }
 
 export interface CrewAgent {
