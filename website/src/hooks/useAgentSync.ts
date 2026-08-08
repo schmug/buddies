@@ -17,11 +17,32 @@ export interface AgentSource {
   waitingForInput?: boolean
   /** Pending tool approval blocking the session, if any */
   pendingApproval?: { tool: string; requestId: string } | null
+  /** The slot's current turn emitted an error. */
+  failed?: boolean
+  /**
+   * The slot has message activity the user has not viewed. Set for ANY
+   * chat_message on a non-active slot, so it turns true mid-turn: this is not a
+   * "finished" signal, and a still-running slot can be unread.
+   */
+  unread?: boolean
 }
 
 const MAX_AGENTS = 8
 const CRON_POLL_MS = 5000
 const SPAWN_POLL_MS = 3000
+
+/**
+ * Own-property lookup into a slot-keyed flag map.
+ *
+ * Slot keys derive from user-supplied titles and channel names, so a key like
+ * `constructor` or `toString` is reachable. A bare `map[key]` resolves those
+ * through `Object.prototype` and would paint a healthy, never-errored slot as
+ * failed — permanently, because the write path guards those keys and so never
+ * created an own property for any clear path to delete.
+ */
+function hasFlag(map: Record<string, boolean>, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(map, key) && map[key]
+}
 
 function shortName(s: string, max = 45): string {
   if (s.length <= max) return s
@@ -30,6 +51,8 @@ function shortName(s: string, max = 45): string {
 
 export function useAgentSync() {
   const slots = useSelector((s: RootState) => s.dashboard.slots)
+  const failedSlots = useSelector((s: RootState) => s.dashboard.failedSlots)
+  const unreadSlots = useSelector((s: RootState) => s.dashboard.unreadSlots)
   const [extras, setExtras] = useState<AgentSource[]>([])
 
   const slotAgents = useMemo<AgentSource[]>(() => slots.map(sl => ({
@@ -41,7 +64,11 @@ export function useAgentSync() {
     pendingApproval: sl.pending_approval_info
       ? { tool: sl.pending_approval_info.tool, requestId: sl.pending_approval_info.request_id }
       : null,
-  })), [slots])
+    failed: hasFlag(failedSlots, sl.key),
+    // `includes` searches unreadSlots BY VALUE, so unlike the failedSlots map
+    // above it is already safe for a prototype-named key.
+    unread: unreadSlots.includes(sl.key),
+  })), [slots, failedSlots, unreadSlots])
 
   useEffect(() => {
     let cancelled = false

@@ -1,6 +1,7 @@
 import { safeSetItem } from '../utils/safeStorage'
 import { createSlice, createAsyncThunk, createSelector, type PayloadAction } from '@reduxjs/toolkit'
 import { api } from '../api/client'
+import { sseChatMessage } from './chatSlice'
 import { sanitizeLlmOutput, isUnsafeKey } from '../utils/sanitize'
 import type { StatusData, ChatSlot, TodoList } from '../types'
 import type { SessionColorMode, PaletteName, DefaultColorSetting, IntensityName } from '../utils/sessionColors'
@@ -17,6 +18,14 @@ interface DashboardState {
   channelTrusted: boolean
   refreshTrigger: number
   unreadSlots: string[]
+  /**
+   * Slots whose current turn emitted an error.
+   *
+   * ChatSlot carries no failure field, so a broken turn is observable only as a
+   * chat_message with role 'error'. Recorded here rather than derived, because by
+   * the time the turn ends the message has already scrolled past.
+   */
+  failedSlots: Record<string, boolean>
   slotsLoaded: boolean
   updateProgress: { step: string; detail: string } | null
   // Desktop updater: an update is discoverable/staged (found|downloading|
@@ -53,6 +62,19 @@ const safeSet = (key: string, value: string) => {
   if (key === 'mc-unread-slots') _relayUnreadToParent(value)
 }
 
+/**
+ * Own-property test for a map keyed by an untrusted slot key.
+ *
+ * Slot keys derive from user-supplied titles and channel names, so a key like
+ * `constructor` or `toString` is reachable. A bare `map[key]` truthiness test
+ * resolves those through `Object.prototype` and reports a flag that was never
+ * written; the follow-on `delete` would then mark the Immer draft modified and
+ * churn the map's identity on every push. `isUnsafeKey` is not enough here — it
+ * covers only the three keys that can pollute on WRITE.
+ */
+const hasOwnFlag = (map: Record<string, boolean>, key: string): boolean =>
+  Object.prototype.hasOwnProperty.call(map, key) && map[key]
+
 const initialState: DashboardState = {
   status: null,
   connected: false,
@@ -61,6 +83,7 @@ const initialState: DashboardState = {
   channelTrusted: false,
   refreshTrigger: 0,
   unreadSlots: (() => { try { return JSON.parse(localStorage.getItem('mc-unread-slots') ?? '[]') as string[] } catch { return [] } })(),
+  failedSlots: {},
   slotsLoaded: false,
   updateProgress: null,
   desktopUpdateAvailable: false,
@@ -102,7 +125,15 @@ const dashboardSlice = createSlice({
     },
     sseConnected(state) { state.connected = true; state.slotsLoaded = false; state.subagentRunning = {}; state.subagentDetails = {}; state.subagentText = {} },
     sseDisconnected(state) { state.connected = false },
-    sseSlots(state, action: PayloadAction<ChatSlot[]>) { state.slots = action.payload; state.slotsLoaded = true },
+    sseSlots(state, action: PayloadAction<ChatSlot[]>) {
+      state.slots = action.payload
+      state.slotsLoaded = true
+      // A slot that is running again has started a NEW turn, so the previous
+      // turn's failure no longer describes it.
+      for (const s of action.payload) {
+        if (s.running && hasOwnFlag(state.failedSlots, s.key)) delete state.failedSlots[s.key]
+      }
+    },
     // Live TODO-list delta. Patched into the SAME slots array that sseSlots
     // populates rather than a parallel map, so the mid-turn push and the
     // reconnect snapshot can never disagree about a slot's list. A delta for an
@@ -133,6 +164,9 @@ const dashboardSlice = createSlice({
     removeSlotOptimistic(state, action: PayloadAction<string>) {
       state.slots = state.slots.filter(s => s.key !== action.payload)
       state.unreadSlots = state.unreadSlots.filter(k => k !== action.payload)
+      // Slot keys derived from a Slack channel or a display name are stable, so
+      // a delete/recreate cycle would otherwise inherit the old turn's failure.
+      if (hasOwnFlag(state.failedSlots, action.payload)) delete state.failedSlots[action.payload]
       safeSet('mc-unread-slots', JSON.stringify(state.unreadSlots))
     },
     updateSlot(state, action: PayloadAction<Partial<ChatSlot> & { key: string }>) {
@@ -247,9 +281,25 @@ const dashboardSlice = createSlice({
         state.slotsLoaded = true
         const liveKeys = new Set(action.payload.map((s: { key: string }) => s.key))
         state.unreadSlots = state.unreadSlots.filter(k => liveKeys.has(k))
+        // Mirror the unreadSlots reconcile: a slot the server no longer lists is
+        // gone, so its failure flag must not outlive it and leak into a later
+        // slot that reuses the key. Object.keys yields own keys only.
+        for (const key of Object.keys(state.failedSlots)) {
+          if (!liveKeys.has(key)) delete state.failedSlots[key]
+        }
         safeSet('mc-unread-slots', JSON.stringify(state.unreadSlots))
       })
       .addCase(changeApprovalMode.fulfilled, (state, action) => { state.approvalMode = action.payload })
+      // Listen to chatSlice's action rather than adding a dispatch in useSSE, so
+      // the single chat_message frame feeds both slices. The stream carries
+      // frames for EVERY slot, not just the active one, so a background slot's
+      // failure is observable here.
+      .addCase(sseChatMessage, (state, action) => {
+        const { slot, role } = action.payload
+        // `slot` is an untrusted map key from the SSE payload.
+        if (role !== 'error' || !slot || isUnsafeKey(slot)) return
+        state.failedSlots[slot] = true
+      })
   },
 })
 
