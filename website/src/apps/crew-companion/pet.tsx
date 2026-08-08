@@ -598,6 +598,8 @@ function Companion() {
     }, CELEBRATE_MS + CELEBRATE_PROP_HOLD_MS)
   }, [])
 
+  // The effect's cleanup is the watcher's `stop` half — safe to hand over on its
+  // own because it is a closure over the socket, not a method that reads `this`.
   useEffect(() => watchSessions({
     isSilent: () => sessionAlertsRef.current === false,
     // The backend rang: drain now rather than at the next tick of the poll.
@@ -714,7 +716,7 @@ function Companion() {
       if (slotRef.current?.sticky) slotRef.current = null
       setBubble((b) => (b && isSticky(b.kind) ? null : b))
     },
-  }), [react, setMood, celebrateWithProp, bumpReaction])
+  }).stop, [react, setMood, celebrateWithProp, bumpReaction])
 
   /** Presence: silence is read as "nobody is there", so this must not stop. */  useEffect(() => {
     void post(PRESENCE_PATH)

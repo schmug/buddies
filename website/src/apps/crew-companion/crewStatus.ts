@@ -28,6 +28,16 @@ function rank(state: AgentState): number {
 }
 
 /**
+ * What KIND of worker an agent is.
+ *
+ * Cast membership turns on this as much as on state, so it is a required field
+ * rather than an optional hint: the rule "crons and subagents never wander the
+ * desktop" is only enforceable here if every transport has to say which it is
+ * supplying. Left to callers, the module would state a guarantee it could not keep.
+ */
+export type AgentKind = 'slot' | 'cron' | 'spawn'
+
+/**
  * What a transport must supply per agent.
  *
  * `failed` is the one field neither transport gets for free: a slot record carries no
@@ -38,6 +48,7 @@ export interface StatusInput {
   id: string
   slotKey: string
   name: string
+  kind: AgentKind
   running: boolean
   waitingForInput: boolean
   pendingApproval: boolean
@@ -51,6 +62,7 @@ export interface CrewAgent {
   id: string
   slotKey: string
   name: string
+  kind: AgentKind
   state: AgentState
   since: number
 }
@@ -78,14 +90,21 @@ export const DESKTOP_CAST_CAP = 4
 /**
  * Cast membership: chat slots in an ACTIVE TURN.
  *
- * `needs-input` counts as active because a turn blocked on the user's approval has
- * not stopped running — and it is the highest-priority state there is, so a rule that
- * kept it off the desktop would hide exactly the agent that needs attention.
+ * Both halves are enforced here rather than trusted to a transport. A cron runs on a
+ * schedule with nobody watching and a subagent belongs to the session that spawned it
+ * — which already has a sprite — so neither earns one of its own at any state, not
+ * even `needs-input`.
+ *
+ * `needs-input` counts as active for a chat slot because a turn blocked on the user's
+ * approval has not stopped running — and it is the highest-priority state there is,
+ * so a rule that kept it off the desktop would hide exactly the agent that needs
+ * attention.
  *
  * `ready`, `blocked` and `idle` agents stay in `agents` (so the world shows them and
  * the aggregate reflects them) but do not wander over the user's work.
  */
-function isCastEligible(state: AgentState): boolean {
+function isCastEligible(kind: AgentKind, state: AgentState): boolean {
+  if (kind !== 'slot') return false
   return state === 'running' || state === 'needs-input'
 }
 
@@ -111,13 +130,14 @@ export function deriveCrewStatus(inputs: StatusInput[]): CrewStatus {
     id: input.id,
     slotKey: input.slotKey,
     name: input.name,
+    kind: input.kind,
     state: stateFor(input),
     since: input.since,
   }))
 
   agents.sort((a, b) => rank(a.state) - rank(b.state) || a.since - b.since)
 
-  const eligible = agents.filter((a) => isCastEligible(a.state))
+  const eligible = agents.filter((a) => isCastEligible(a.kind, a.state))
 
   return {
     agents,
