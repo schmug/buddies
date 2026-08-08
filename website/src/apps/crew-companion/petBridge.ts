@@ -27,13 +27,15 @@ type Preload = {
    * pointer-enter/leave boolean is what removes the IPC round-trip that let a click
    * on the companion body fall through to the window behind it.
    *
-   * The preload accepts a third argument, a list of one rect per cast sprite. This
-   * signature stops at two, so anything it sends reports an empty cast — widen both
-   * together, since a report that omits the cast clears it.
+   * The third argument is one rect per cast sprite, and it is required rather than
+   * optional on purpose: an omitted cast is read as an EMPTY cast everywhere below
+   * this line, so a caller that leaves it out makes every sprite click-through. The
+   * type is what forces every report to carry the whole set.
    */
   updateHitbox?(
     pet: { x: number; y: number; w: number; h: number } | null,
     bubble: { x: number; y: number; w: number; h: number } | null,
+    cast: Array<{ x: number; y: number; w: number; h: number }>,
   ): void
   /**
    * Report the context menu's rect while it is open, or null when it closes.
@@ -101,20 +103,22 @@ export interface PetBridge {
   onDragUpdate?: (cb: (x: number, y: number) => void) => (() => void) | undefined
   onDragEnded?: (cb: (x: number, y: number) => void) => (() => void) | undefined
   /**
-   * Report the companion's and bubble's hitboxes to the main process.
+   * Report the companion's, bubble's and cast's hitboxes to the main process.
    *
    * The main process polls the cursor at ~60fps and toggles this overlay's
    * ignore-mouse from these rects directly, with no pointer-enter/leave round-trip
    * — which is what stopped clicks on the companion body falling through to the
    * window behind it.
    *
-   * The underlying contract carries a third argument, a list of one rect per cast
-   * sprite. This signature stops at two, so anything it sends reports an empty cast
-   * — widen both together, since a report that omits the cast clears it.
+   * `cast` carries one rect per sprite and every report must supply the whole set:
+   * the main process replaces the cast with what it is handed, so a report that
+   * omits a sprite makes that sprite click-through. `useMouseForward` is the single
+   * caller for exactly that reason.
    */
   updateHitbox?: (
     pet: { x: number; y: number; w: number; h: number } | null,
     bubble: { x: number; y: number; w: number; h: number } | null,
+    cast: Array<{ x: number; y: number; w: number; h: number }>,
   ) => void
   /**
    * Report the context menu's rect while it is open, or null when it closes.
@@ -840,8 +844,8 @@ export const petBridge: PetBridge = {
     return () => listeners.colour.delete(cb as (d: never) => void)
   },
 
-  updateHitbox(pet, bubble) {
-    preload()?.updateHitbox?.(pet, bubble)
+  updateHitbox(pet, bubble, cast) {
+    preload()?.updateHitbox?.(pet, bubble, cast)
   },
 
   setMenuHitbox(rect) {

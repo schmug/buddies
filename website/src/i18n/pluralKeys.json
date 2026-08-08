@@ -24,6 +24,7 @@
   "apps.codeReviewSage.views.learningView.confirm_merge",
   "apps.codeReviewSage.views.learningView.consolidate_pending",
   "apps.codeReviewSage.views.learningView.pattern",
+  "apps.crewCompanion.cast.more_agents",
   "apps.crewCompanion.memories.days_together",
   "apps.crewCompanion.memories.row_breathing",
   "apps.crewCompanion.memories.row_reminders",

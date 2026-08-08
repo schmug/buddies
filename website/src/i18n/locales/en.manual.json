@@ -464,6 +464,11 @@
         "through_mouth": "through your mouth",
         "through_nose": "through your nose"
       },
+      "cast": {
+        "more_agents_one": "{{count}} more agent running",
+        "more_agents_other": "{{count}} more agents running",
+        "open_in_worlds": "Open {{name}} in Agent Worlds"
+      },
       "color": {
         "belly": "Belly",
         "bodyFur": "Body / Fur",

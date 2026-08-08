@@ -848,6 +848,12 @@
         "through_mouth": "pela boca",
         "through_nose": "pelo nariz"
       },
+      "cast": {
+        "more_agents_many": "mais {{count}} agentes em execução",
+        "more_agents_one": "mais {{count}} agente em execução",
+        "more_agents_other": "mais {{count}} agentes em execução",
+        "open_in_worlds": "Abrir {{name}} em Mundos de agentes"
+      },
       "color": {
         "belly": "Barriga",
         "bodyFur": "Corpo / Pelo",
