@@ -823,6 +823,11 @@
         "through_mouth": "মুখ দিয়ে",
         "through_nose": "নাক দিয়ে"
       },
+      "cast": {
+        "more_agents_one": "আরও {{count}} এজেন্ট চলছে",
+        "more_agents_other": "আরও {{count}} এজেন্ট চলছে",
+        "open_in_worlds": "এজেন্ট ওয়ার্ল্ডে {{name}} খুলুন"
+      },
       "color": {
         "belly": "পেট",
         "bodyFur": "শরীর / লোম",

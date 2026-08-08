@@ -873,6 +873,13 @@
         "through_mouth": "через рот",
         "through_nose": "через нос"
       },
+      "cast": {
+        "more_agents_few": "ещё {{count}} агента работают",
+        "more_agents_many": "ещё {{count}} агентов работают",
+        "more_agents_one": "ещё {{count}} агент работает",
+        "more_agents_other": "ещё {{count}} агента работают",
+        "open_in_worlds": "Открыть {{name}} в Мирах агентов"
+      },
       "color": {
         "belly": "Живот",
         "bodyFur": "Тело / Шерсть",

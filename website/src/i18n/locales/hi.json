@@ -823,6 +823,11 @@
         "through_mouth": "मुँह से",
         "through_nose": "नाक से"
       },
+      "cast": {
+        "more_agents_one": "{{count}} और एजेंट चल रहा है",
+        "more_agents_other": "{{count}} और एजेंट चल रहे हैं",
+        "open_in_worlds": "{{name}} को एजेंट वर्ल्ड्स में खोलें"
+      },
       "color": {
         "belly": "पेट",
         "bodyFur": "शरीर / रोएँ",

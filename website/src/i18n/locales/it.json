@@ -848,6 +848,12 @@
         "through_mouth": "dalla bocca",
         "through_nose": "dal naso"
       },
+      "cast": {
+        "more_agents_many": "{{count}} altri agenti in esecuzione",
+        "more_agents_one": "{{count}} altro agente in esecuzione",
+        "more_agents_other": "{{count}} altri agenti in esecuzione",
+        "open_in_worlds": "Apri {{name}} in Mondi degli agenti"
+      },
       "color": {
         "belly": "Pancia",
         "bodyFur": "Corpo / Pelo",

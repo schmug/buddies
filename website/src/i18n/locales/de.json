@@ -823,6 +823,11 @@
         "through_mouth": "durch den Mund",
         "through_nose": "durch die Nase"
       },
+      "cast": {
+        "more_agents_one": "{{count}} weiterer Agent aktiv",
+        "more_agents_other": "{{count}} weitere Agenten aktiv",
+        "open_in_worlds": "{{name}} in Agenten-Welten öffnen"
+      },
       "color": {
         "belly": "Bauch",
         "bodyFur": "Körper / Fell",
