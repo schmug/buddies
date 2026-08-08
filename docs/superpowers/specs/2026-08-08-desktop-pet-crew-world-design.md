@@ -193,12 +193,25 @@ the crew world.
 **Reduced motion** (`prefers-reduced-motion`) pins every sprite to a still frame and
 suppresses wandering, matching Codex's documented behaviour.
 
-**Multi-display — resolve first.** `openPetWindow` creates one overlay per display,
-each loading `pet.html`, while pet position persists globally as `petX` / `petY`. The
-mechanism by which the current build avoids showing one main pet per monitor has not
-been traced. Whatever it is, the cast must obey it, or the cast multiplies per
-display. This is the first implementation step; no cast code is written before it is
-established.
+**Multi-display: one pet per monitor, by design.** The build does not avoid showing a
+pet per display — it intends to. Three independent statements in the code agree:
+
+- `useMouseForward`'s header describes "this build's single-display-per-overlay model",
+  where "each overlay renders the companion independently and the main process never
+  transfers a pet between displays".
+- `petBridge`'s cross-display drag hooks are deliberately left undefined because "each
+  display has its own overlay, so a drag is handled entirely within the one the pointer
+  is in".
+- `openPetWindow` iterates `screen.getAllDisplays()` and loads the same `pet.html` into
+  an overlay on each.
+
+So `CrewCast` renders in **every** overlay, each instance following its own display's
+pet. No leader election, no coordination, no per-display gating.
+
+One inherited consequence to be aware of rather than fix: position persists globally as
+a single `petX` / `petY` pair, so every display's pet sits at the same coordinates and
+dragging one moves them all. The cast is positioned relative to `pos`, so it inherits
+that behaviour consistently.
 
 ## World scene
 
