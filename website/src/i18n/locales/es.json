@@ -9072,6 +9072,15 @@
         "panda_office_scene": "Escena de la oficina de pandas",
         "panda_office_scene_labels": "Etiquetas de la escena de la oficina de pandas"
       },
+      "petCastScene": {
+        "blocked": "Bloqueado",
+        "idle": "Inactivo",
+        "needs_you": "Te necesita",
+        "no_agents_right_now": "No hay agentes ahora mismo",
+        "open_session": "Abrir {{name}}",
+        "ready": "Listo",
+        "working": "Trabajando"
+      },
       "underwaterLabScene": {
         "deep_sea_lab": "Laboratorio de las profundidades",
         "research_station": "estación de investigación",

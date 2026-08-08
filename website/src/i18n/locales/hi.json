@@ -8962,6 +8962,15 @@
         "panda_office_scene": "पांडा ऑफ़िस दृश्य",
         "panda_office_scene_labels": "पांडा ऑफ़िस दृश्य के लेबल"
       },
+      "petCastScene": {
+        "blocked": "अवरुद्ध",
+        "idle": "निष्क्रिय",
+        "needs_you": "आपकी ज़रूरत है",
+        "no_agents_right_now": "अभी कोई एजेंट नहीं",
+        "open_session": "{{name}} खोलें",
+        "ready": "तैयार",
+        "working": "काम कर रहा है"
+      },
       "underwaterLabScene": {
         "deep_sea_lab": "गहरे समुद्र की लैब",
         "research_station": "शोध केंद्र",

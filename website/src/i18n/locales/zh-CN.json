@@ -8852,6 +8852,15 @@
         "panda_office_scene": "熊猫办公室场景",
         "panda_office_scene_labels": "熊猫办公室场景标签"
       },
+      "petCastScene": {
+        "blocked": "已阻塞",
+        "idle": "空闲",
+        "needs_you": "需要你",
+        "no_agents_right_now": "目前没有代理",
+        "open_session": "打开 {{name}}",
+        "ready": "就绪",
+        "working": "工作中"
+      },
       "underwaterLabScene": {
         "deep_sea_lab": "深海实验室",
         "research_station": "研究站",
