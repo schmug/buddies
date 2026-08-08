@@ -194,7 +194,16 @@ function emptyHitboxes() {
   return { pet: null, bubble: null, menu: null, cast: [] };
 }
 
-/** Merge a window's pet/bubble/cast hitboxes, preserving any menu rect. */
+/**
+ * Merge a window's pet/bubble/cast hitboxes, preserving any menu rect.
+ *
+ * A report that omits the cast is read as "no sprites" and clears them. That is the
+ * deliberately fail-SAFE direction: an omitted list can only make sprites
+ * unclickable, a visible functional bug, whereas carrying the previous list forward
+ * would pin whatever regions of the user's desktop those now-stale rects cover.
+ * `pet-preload.js` normalizes the same way before the value reaches the wire, so
+ * every layer puts one reading on an absent cast.
+ */
 function setWindowHitbox(win, pet, bubble, cast) {
   if (!win) return;
   const cur = hitboxes.get(win) || emptyHitboxes();
@@ -202,14 +211,17 @@ function setWindowHitbox(win, pet, bubble, cast) {
     pet: pet || null,
     bubble: bubble || null,
     menu: cur.menu || null,
-    // Undefined means "this report did not mention the cast", which must not be
-    // read as "the cast is empty" — a bubble update would otherwise silently make
-    // every sprite click-through.
-    cast: cast === undefined ? cur.cast || [] : cast || [],
+    cast: Array.isArray(cast) ? cast : [],
   });
 }
 
-/** Merge a window's menu hitbox, preserving its pet/bubble/cast rects. */
+/**
+ * Merge a window's menu hitbox, preserving its pet/bubble/cast rects.
+ *
+ * The menu IPC carries only the menu rect, so the other three must be copied
+ * forward here — otherwise opening the context menu would make the companion and
+ * every cast sprite click-through for as long as it is open.
+ */
 function setWindowMenuHitbox(win, rect) {
   if (!win) return;
   const cur = hitboxes.get(win) || emptyHitboxes();

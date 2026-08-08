@@ -253,30 +253,31 @@ test("cursorHitsWindow leaves the gap between two cast sprites click-through", (
   }
 });
 
-test("setWindowHitbox preserves cast rects when the bubble changes", () => {
+test("setWindowHitbox clears the cast when a report omits it", () => {
   const stub = stubElectron();
   try {
     const { setWindowHitbox, cursorHitsWindow, hitboxesFor } = loadOverlay();
     const win = new stub.FakeWindow({ x: 0, y: 0, width: 1440, height: 900 });
     setWindowHitbox(win, { x: 0, y: 0, w: 1, h: 1 }, null, [{ x: 5, y: 5, w: 5, h: 5 }]);
+    assert.strictEqual(cursorHitsWindow(hitboxesFor(win), 7, 7), true, "a reported sprite is hit");
 
-    // A bubble-only report omits the cast entirely. Omission means "this report did
-    // not mention the cast", never "the cast is empty" — otherwise every sprite goes
-    // click-through the moment the bubble changes.
+    // An omitted cast reads as "no sprites" rather than carrying the old list forward.
+    // Stale rects would pin those regions of the desktop unclickable; going
+    // click-through can only cost a click on a sprite. `pet-preload.js` normalizes an
+    // omitted argument to [] before it reaches the wire, so a bubble-only report from
+    // the renderer arrives here as that same empty list rather than as undefined.
     setWindowHitbox(win, { x: 0, y: 0, w: 1, h: 1 }, { x: 2, y: 2, w: 2, h: 2 });
     assert.strictEqual(
       cursorHitsWindow(hitboxesFor(win), 7, 7),
-      true,
-      "an unmentioned cast survives a bubble update",
+      false,
+      "an omitted cast clears the sprites",
     );
 
-    // An explicit empty list IS a report of "no sprites" and does clear them. Without
-    // this half, "preserve on undefined" would be indistinguishable from never clearing.
     setWindowHitbox(win, { x: 0, y: 0, w: 1, h: 1 }, null, []);
     assert.strictEqual(
       cursorHitsWindow(hitboxesFor(win), 7, 7),
       false,
-      "an explicit empty cast clears the sprites",
+      "an explicit empty cast clears them too",
     );
   } finally {
     stub.restore();
