@@ -14,7 +14,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("crewCompanion", {
   /**
-   * Report the companion's and bubble's hitboxes for this window.
+   * Report the companion's, bubble's and cast's hitboxes for this window.
    *
    * The window covers the whole display, so leaving input enabled would make the
    * desktop unclickable. Rather than toggle input as the pointer enters and leaves
@@ -24,9 +24,17 @@ contextBridge.exposeInMainWorld("crewCompanion", {
    *
    * @param {{x:number,y:number,w:number,h:number}|null} pet
    * @param {{x:number,y:number,w:number,h:number}|null} bubble
+   * @param {Array<{x:number,y:number,w:number,h:number}>} [cast] one rect per cast
+   *   sprite, never a merged bounding box — the gaps between sprites must stay
+   *   click-through for the window underneath.
    */
-  updateHitbox(pet, bubble) {
-    ipcRenderer.send("crew-companion:update-hitbox", pet || null, bubble || null);
+  updateHitbox(pet, bubble, cast) {
+    ipcRenderer.send(
+      "crew-companion:update-hitbox",
+      pet || null,
+      bubble || null,
+      Array.isArray(cast) ? cast : [],
+    );
   },
 
   /**

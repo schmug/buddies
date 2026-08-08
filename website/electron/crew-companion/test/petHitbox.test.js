@@ -221,6 +221,85 @@ test("the menu rect is one of the reported hitboxes and preserves the pet rect",
   }
 });
 
+// ── the cast ──────────────────────────────────────────────────────────────
+
+test("cursorHitsWindow matches a cast rect", () => {
+  const stub = stubElectron();
+  try {
+    const { cursorHitsWindow } = loadOverlay();
+    const boxes = { pet: null, bubble: null, menu: null, cast: [{ x: 50, y: 50, w: 30, h: 30 }] };
+    assert.strictEqual(cursorHitsWindow(boxes, 60, 60), true, "inside a cast sprite");
+    assert.strictEqual(cursorHitsWindow(boxes, 10, 10), false, "outside every cast sprite");
+  } finally {
+    stub.restore();
+  }
+});
+
+test("cursorHitsWindow leaves the gap between two cast sprites click-through", () => {
+  const stub = stubElectron();
+  try {
+    const { cursorHitsWindow } = loadOverlay();
+    const boxes = {
+      pet: null,
+      bubble: null,
+      menu: null,
+      cast: [{ x: 0, y: 0, w: 20, h: 20 }, { x: 300, y: 0, w: 20, h: 20 }],
+    };
+    // A merged bounding box over the two sprites would claim this point.
+    assert.strictEqual(cursorHitsWindow(boxes, 150, 10), false, "the gap stays click-through");
+    assert.strictEqual(cursorHitsWindow(boxes, 310, 10), true, "the far sprite is still hit");
+  } finally {
+    stub.restore();
+  }
+});
+
+test("setWindowHitbox preserves cast rects when the bubble changes", () => {
+  const stub = stubElectron();
+  try {
+    const { setWindowHitbox, cursorHitsWindow, hitboxesFor } = loadOverlay();
+    const win = new stub.FakeWindow({ x: 0, y: 0, width: 1440, height: 900 });
+    setWindowHitbox(win, { x: 0, y: 0, w: 1, h: 1 }, null, [{ x: 5, y: 5, w: 5, h: 5 }]);
+
+    // A bubble-only report omits the cast entirely. Omission means "this report did
+    // not mention the cast", never "the cast is empty" — otherwise every sprite goes
+    // click-through the moment the bubble changes.
+    setWindowHitbox(win, { x: 0, y: 0, w: 1, h: 1 }, { x: 2, y: 2, w: 2, h: 2 });
+    assert.strictEqual(
+      cursorHitsWindow(hitboxesFor(win), 7, 7),
+      true,
+      "an unmentioned cast survives a bubble update",
+    );
+
+    // An explicit empty list IS a report of "no sprites" and does clear them. Without
+    // this half, "preserve on undefined" would be indistinguishable from never clearing.
+    setWindowHitbox(win, { x: 0, y: 0, w: 1, h: 1 }, null, []);
+    assert.strictEqual(
+      cursorHitsWindow(hitboxesFor(win), 7, 7),
+      false,
+      "an explicit empty cast clears the sprites",
+    );
+  } finally {
+    stub.restore();
+  }
+});
+
+test("setWindowMenuHitbox preserves the cast rects", () => {
+  const stub = stubElectron();
+  try {
+    const { setWindowHitbox, setWindowMenuHitbox, cursorHitsWindow, hitboxesFor } = loadOverlay();
+    const win = new stub.FakeWindow({ x: 0, y: 0, width: 1440, height: 900 });
+    setWindowHitbox(win, { x: 100, y: 100, w: 128, h: 128 }, null, [{ x: 5, y: 5, w: 5, h: 5 }]);
+    setWindowMenuHitbox(win, { x: 500, y: 400, w: 160, h: 90 });
+    assert.strictEqual(
+      cursorHitsWindow(hitboxesFor(win), 7, 7),
+      true,
+      "opening the menu does not clobber the cast",
+    );
+  } finally {
+    stub.restore();
+  }
+});
+
 // ── IPC routing ───────────────────────────────────────────────────────────
 
 test("the hitbox IPC routes a renderer's report to its own overlay", () => {
@@ -246,6 +325,15 @@ test("the hitbox IPC routes a renderer's report to its own overlay", () => {
     stub.ipcHandlers["crew-companion:menu-hitbox"]({ sender }, { x: 500, y: 400, w: 160, h: 90 });
     overlay.refreshOverlayInput(win, { x: 550, y: 440 });
     assert.strictEqual(win.ignoreMouse.ignore, false, "reported menu rect makes the menu clickable");
+
+    stub.ipcHandlers["crew-companion:update-hitbox"](
+      { sender },
+      { x: 100, y: 100, w: 128, h: 128 },
+      null,
+      [{ x: 700, y: 700, w: 40, h: 40 }],
+    );
+    overlay.refreshOverlayInput(win, { x: 720, y: 720 });
+    assert.strictEqual(win.ignoreMouse.ignore, false, "a reported cast rect is clickable");
 
     overlay.stopHitboxPoll();
     overlay.closePetWindow();

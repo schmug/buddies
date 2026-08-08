@@ -22,10 +22,12 @@ const { companionPageUrl } = require("./pageUrl");
 const overlays = new Map();
 
 /**
- * Per-overlay cursor hitboxes: window -> { pet, bubble, menu }, each rect in that
- * overlay's local pixels or null. The renderer reports these; the poll below reads
- * them. Keyed by the window itself so a torn-down overlay drops out cleanly.
- * @type {Map<Electron.BrowserWindow, {pet: object|null, bubble: object|null, menu: object|null}>}
+ * Per-overlay cursor hitboxes: window -> { pet, bubble, menu, cast }, each rect in
+ * that overlay's local pixels or null, and `cast` a list of one rect per cast sprite.
+ * The renderer reports these; the poll below reads them. Keyed by the window itself
+ * so a torn-down overlay drops out cleanly.
+ * @type {Map<Electron.BrowserWindow, {pet: object|null, bubble: object|null,
+ *   menu: object|null, cast: object[]}>}
  */
 const hitboxes = new Map();
 
@@ -150,11 +152,11 @@ function isPetWindow(win) {
  * ── Cursor-hitbox authority ────────────────────────────────────────────────
  *
  * The overlay is click-through everywhere except a few small regions — the
- * companion, its bubble, and (while open) the context menu. The renderer reports
- * those rects; the main process polls the real cursor at ~60fps and toggles this
- * window's ignore-mouse itself. Doing the hit-test here rather than on a
- * pointer-enter/leave IPC round-trip is what stops a click on the companion body
- * falling through to the window behind it.
+ * companion, its bubble, (while open) the context menu, and each cast sprite. The
+ * renderer reports those rects; the main process polls the real cursor at ~60fps
+ * and toggles this window's ignore-mouse itself. Doing the hit-test here rather
+ * than on a pointer-enter/leave IPC round-trip is what stops a click on the
+ * companion body falling through to the window behind it.
  *
  * `forward: true` on the ignore state keeps move events flowing even while the
  * window is click-through, which is what lets this poll keep seeing the cursor.
@@ -171,28 +173,52 @@ function pointInRect(rect, x, y) {
   );
 }
 
-/** True when the point falls inside ANY of this overlay's reported hitboxes. */
+/**
+ * True when the point falls inside ANY of this overlay's reported hitboxes.
+ *
+ * The cast is tested rect by rect rather than as one enclosing box, so the empty
+ * space between spread-out sprites stays click-through for the window underneath.
+ */
 function cursorHitsWindow(boxes, localX, localY) {
   if (!boxes) return false;
   return (
     pointInRect(boxes.pet, localX, localY) ||
     pointInRect(boxes.bubble, localX, localY) ||
-    pointInRect(boxes.menu, localX, localY)
+    pointInRect(boxes.menu, localX, localY) ||
+    (boxes.cast || []).some((r) => pointInRect(r, localX, localY))
   );
 }
 
-/** Merge a window's pet/bubble hitboxes, preserving any menu rect. */
-function setWindowHitbox(win, pet, bubble) {
-  if (!win) return;
-  const cur = hitboxes.get(win) || { pet: null, bubble: null, menu: null };
-  hitboxes.set(win, { pet: pet || null, bubble: bubble || null, menu: cur.menu || null });
+/** An overlay with nothing reported yet: every region click-through. */
+function emptyHitboxes() {
+  return { pet: null, bubble: null, menu: null, cast: [] };
 }
 
-/** Merge a window's menu hitbox, preserving its pet/bubble rects. */
+/** Merge a window's pet/bubble/cast hitboxes, preserving any menu rect. */
+function setWindowHitbox(win, pet, bubble, cast) {
+  if (!win) return;
+  const cur = hitboxes.get(win) || emptyHitboxes();
+  hitboxes.set(win, {
+    pet: pet || null,
+    bubble: bubble || null,
+    menu: cur.menu || null,
+    // Undefined means "this report did not mention the cast", which must not be
+    // read as "the cast is empty" — a bubble update would otherwise silently make
+    // every sprite click-through.
+    cast: cast === undefined ? cur.cast || [] : cast || [],
+  });
+}
+
+/** Merge a window's menu hitbox, preserving its pet/bubble/cast rects. */
 function setWindowMenuHitbox(win, rect) {
   if (!win) return;
-  const cur = hitboxes.get(win) || { pet: null, bubble: null, menu: null };
-  hitboxes.set(win, { pet: cur.pet || null, bubble: cur.bubble || null, menu: rect || null });
+  const cur = hitboxes.get(win) || emptyHitboxes();
+  hitboxes.set(win, {
+    pet: cur.pet || null,
+    bubble: cur.bubble || null,
+    menu: rect || null,
+    cast: cur.cast || [],
+  });
 }
 
 /**
@@ -256,9 +282,9 @@ function registerOverlayIpc() {
   if (ipcRegistered) return;
   ipcRegistered = true;
 
-  ipcMain.on("crew-companion:update-hitbox", (event, pet, bubble) => {
+  ipcMain.on("crew-companion:update-hitbox", (event, pet, bubble, cast) => {
     const win = BrowserWindow.fromWebContents(event.sender);
-    if (win && isPetWindow(win)) setWindowHitbox(win, pet, bubble);
+    if (win && isPetWindow(win)) setWindowHitbox(win, pet, bubble, cast);
   });
 
   ipcMain.on("crew-companion:menu-hitbox", (event, rect) => {
@@ -287,4 +313,5 @@ module.exports = {
   pollOverlayInputOnce,
   setWindowHitbox,
   setWindowMenuHitbox,
+  hitboxesFor: (win) => hitboxes.get(win),
 };
