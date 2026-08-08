@@ -31,12 +31,21 @@
  * app hit the same wall and treated an unobserved start as unknown rather than as
  * zero, because measuring from "when I first noticed" silently swallowed every
  * notification after a restart.
+ *
+ * ## Two outputs from one socket
+ *
+ * The same frames answer a second question — "what is the crew doing right now" —
+ * which the desktop cast asks every frame. That is `snapshot()`, and it is a PULL:
+ * the tables below are already maintained for the completion gate, so exposing a
+ * read of them costs nothing, while pushing would make this module own a
+ * subscription that the caller's render loop already provides.
  */
 import {
   evaluateCompletion,
   confirmAssumedStart,
   type GateDecision,
 } from './completionGate'
+import type { StatusInput } from './crewStatus'
 
 /** What the caller needs in order to raise a bubble. */
 export interface SessionDone {
@@ -113,13 +122,21 @@ function defaultConnect(): WebSocket {
 const RECONNECT_MIN_MS = 1_000
 const RECONNECT_MAX_MS = 30_000
 
+/** What a caller holds onto: the teardown, and a read of what the crew is doing. */
+export interface SessionWatcher {
+  /** Detach the socket and stop reconnecting. */
+  stop: () => void
+  /** The crew's current condition, as `crewStatus` wants it. Empty while down. */
+  snapshot: () => StatusInput[]
+}
+
 /**
- * Start watching. Returns a stop function.
+ * Start watching. Returns the watcher handle.
  *
  * Deliberately not a React hook: it owns a socket and a table of start times, and
- * both must survive re-renders of the companion. The caller holds the stop function.
+ * both must survive re-renders of the companion. The caller holds the handle.
  */
-export function watchSessions(opts: SessionWatchOptions): () => void {
+export function watchSessions(opts: SessionWatchOptions): SessionWatcher {
   const now = opts.now ?? (() => Date.now())
   const connect = opts.connect ?? defaultConnect
 
@@ -148,6 +165,24 @@ export function watchSessions(opts: SessionWatchOptions): () => void {
    * no hop, no bubble, no error shake.
    */
   const stoppedSlots = new Set<string>()
+  /**
+   * Slots with a tool blocked on the user right now.
+   *
+   * Separate from the callbacks: `onApproval` fires once, at the moment the tool
+   * goes pending, while the status snapshot has to keep answering "is this session
+   * still waiting on me" on every frame that follows.
+   */
+  const pendingApproval = new Set<string>()
+  /** Slots whose last turn ended with an outcome the user has not looked at yet. */
+  const unread = new Set<string>()
+  /**
+   * slot -> when its current condition began, for the status tie-break.
+   *
+   * Written wherever a condition actually CHANGES — a start recorded, a turn
+   * finished, an approval raised — rather than on every frame, because the
+   * tie-break's whole job is to keep the longest-waiting agent stably first.
+   */
+  const stateSince = new Map<string, number>()
 
   let socket: WebSocket | null = null
   let stopped = false
@@ -156,7 +191,11 @@ export function watchSessions(opts: SessionWatchOptions): () => void {
 
   const markStart = (slot: string, wasAssumed: boolean) => {
     if (startedAt.has(slot)) return
-    startedAt.set(slot, now())
+    const at = now()
+    startedAt.set(slot, at)
+    // The snapshot reads running-ness off `startedAt`, so gaining a start IS the
+    // condition change `since` measures — and both must read the same instant.
+    stateSince.set(slot, at)
     if (wasAssumed) assumed.add(slot)
   }
 
@@ -169,6 +208,9 @@ export function watchSessions(opts: SessionWatchOptions): () => void {
     assumed.delete(slot)
     failedSlots.delete(slot)
     stoppedSlots.delete(slot)
+    // Losing the start is the other half of the same condition change, and it counts
+    // even for a turn the gate goes on to drop: the session did stop running.
+    stateSince.set(slot, now())
 
     // The user pressed Stop: this turn ended because they ended it. Celebrating it
     // as done misreports the outcome, and shaking about it misreports it worse.
@@ -232,7 +274,23 @@ export function watchSessions(opts: SessionWatchOptions): () => void {
     switch (msg.type) {
       case 'chat_status': {
         // The earliest live start marker there is.
-        if (typeof data.slot === 'string') markStart(data.slot, false)
+        if (typeof data.slot === 'string') {
+          /*
+           * Only the FIRST status frame of a turn opens a new turn.
+           *
+           * The gateway repeats this frame as the status line changes ("Thinking…",
+           * then the next thing), so clearing the outcome on every one would wipe an
+           * error recorded earlier in the SAME turn — and `onDone` would then report
+           * a broken turn as a success. `startedAt` is the one record that already
+           * distinguishes the two, and `markStart` is idempotent for the same reason.
+           */
+          const fresh = !startedAt.has(data.slot)
+          markStart(data.slot, false)
+          if (fresh) {
+            unread.delete(data.slot)
+            failedSlots.delete(data.slot)
+          }
+        }
         break
       }
       case 'slots': {
@@ -243,6 +301,9 @@ export function watchSessions(opts: SessionWatchOptions): () => void {
           const s = entry as { key?: unknown; running?: unknown; title?: unknown; stopping?: unknown }
           if (typeof s.key !== 'string') continue
           if (typeof s.title === 'string') titles.set(s.key, s.title)
+          // First sight of a slot starts its clock; every later change of condition
+          // is stamped by markStart / finish instead.
+          if (!stateSince.has(s.key)) stateSince.set(s.key, now())
           if (s.running === true) markStart(s.key, true)
           /*
            * `stopping: true` is the only signal this socket gets that the user
@@ -258,7 +319,13 @@ export function watchSessions(opts: SessionWatchOptions): () => void {
         break
       }
       case 'chat_done': {
-        if (typeof data.slot === 'string') finish(data.slot)
+        if (typeof data.slot === 'string') {
+          // Whatever the gate decides about the bubble, the turn produced something
+          // the user has not read yet — that is a status the pet reports, not a
+          // notification, so it is recorded regardless of the gate's ruling.
+          unread.add(data.slot)
+          finish(data.slot)
+        }
         break
       }
       case 'chat_message': {
@@ -275,6 +342,8 @@ export function watchSessions(opts: SessionWatchOptions): () => void {
         // waiting — the title comes from the same table `onDone` reads, since the
         // frame itself has no human name.
         if (typeof data.slot === 'string') {
+          pendingApproval.add(data.slot)
+          stateSince.set(data.slot, now())
           opts.onApproval?.({ slot: data.slot, title: titles.get(data.slot) ?? '' })
         }
         break
@@ -283,6 +352,12 @@ export function watchSessions(opts: SessionWatchOptions): () => void {
         // Carries the approval's id, not a slot — so this cannot say WHICH bubble to
         // clear. Treated as "the blocking question was answered", which is enough for
         // the caller to release a sticky bubble that is holding the slot.
+        //
+        // The same limitation is why the whole set is cleared rather than one entry:
+        // there is nothing on the frame to match against. Erring towards clearing is
+        // the safe direction — an over-cleared slot goes quiet, while an under-cleared
+        // one leaves the pet demanding attention for a question already answered.
+        pendingApproval.clear()
         opts.onApprovalResolved?.()
         break
       }
@@ -361,9 +436,37 @@ export function watchSessions(opts: SessionWatchOptions): () => void {
     }, retryMs)
   }
 
-  open()
+  /**
+   * The crew's current condition as `crewStatus` wants it.
+   *
+   * Built on demand rather than pushed, so a caller that renders at 60fps reads
+   * whatever is true at that frame without this module owning a subscription.
+   *
+   * Returns EMPTY while the socket is down. A stale snapshot would leave the pet
+   * reporting work that no longer has anywhere to run.
+   */
+  const snapshot = (): StatusInput[] => {
+    if (!socket) return []
+    const keys = new Set<string>([...titles.keys(), ...startedAt.keys()])
+    return [...keys].map((slot) => ({
+      id: `slot-${slot}`,
+      slotKey: slot,
+      // Only chat slots reach this transport, so nothing here can be a cron or a
+      // subagent — which is what keeps those off the desktop cast.
+      kind: 'slot' as const,
+      name: titles.get(slot) ?? '',
+      running: startedAt.has(slot),
+      // The `slots` frame does not carry it. Work waiting on the user reaches this
+      // transport as an `approval` frame instead, which `pendingApproval` records.
+      waitingForInput: false,
+      pendingApproval: pendingApproval.has(slot),
+      failed: failedSlots.has(slot),
+      unread: unread.has(slot),
+      since: stateSince.get(slot) ?? now(),
+    }))
+  }
 
-  return () => {
+  const stop = () => {
     stopped = true
     if (retryTimer !== null) window.clearTimeout(retryTimer)
     retryTimer = null
@@ -375,4 +478,8 @@ export function watchSessions(opts: SessionWatchOptions): () => void {
       socket = null
     }
   }
+
+  open()
+
+  return { stop, snapshot }
 }
