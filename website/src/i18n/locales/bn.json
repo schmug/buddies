@@ -8973,6 +8973,15 @@
         "panda_office_scene": "পান্ডা অফিস দৃশ্য",
         "panda_office_scene_labels": "পান্ডা অফিস দৃশ্যের লেবেল"
       },
+      "petCastScene": {
+        "blocked": "অবরুদ্ধ",
+        "idle": "নিষ্ক্রিয়",
+        "needs_you": "আপনাকে প্রয়োজন",
+        "no_agents_right_now": "এখন কোনো এজেন্ট নেই",
+        "open_session": "{{name}} খুলুন",
+        "ready": "প্রস্তুত",
+        "working": "কাজ করছে"
+      },
       "underwaterLabScene": {
         "deep_sea_lab": "গভীর সমুদ্র ল্যাব",
         "research_station": "গবেষণা কেন্দ্র",

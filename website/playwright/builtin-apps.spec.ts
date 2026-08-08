@@ -45,6 +45,22 @@ test.describe('Builtin App Route resolution', () => {
     await expect(page.getByTestId('collapse-panel')).toBeVisible({ timeout: 10000 })
   })
 
+  test('/worlds crew scene renders as live DOM', async ({ page }) => {
+    await page.goto('/worlds', { waitUntil: 'domcontentloaded' })
+    const crewTab = page.getByRole('button', { name: /^Crew scene:/ })
+    await expect(crewTab).toBeVisible({ timeout: 10000 })
+    await crewTab.click()
+    // The crew scene is the one scene that draws no pixels — it renders the same
+    // appearance packs the desktop pet uses — so its container must be live DOM,
+    // and selecting it must clear the paused flag that gates its animation.
+    const scene = page.getByTestId('crew-scene')
+    await expect(scene).toBeVisible({ timeout: 10000 })
+    await expect(scene).toHaveAttribute('data-scene-paused', 'false')
+    // The minimal fixture has no chat slots, so the empty state is the assertion
+    // that survives an empty backend.
+    await expect(scene.getByText('No agents right now')).toBeVisible({ timeout: 10000 })
+  })
+
   // ── /channels — ChannelPage ───────────────────────────────────────────────
 
   test('/channels renders Channels page with empty state', async ({ page }) => {

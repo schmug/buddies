@@ -8858,6 +8858,15 @@
         "panda_office_scene": "판다 오피스 장면",
         "panda_office_scene_labels": "판다 오피스 장면 레이블"
       },
+      "petCastScene": {
+        "blocked": "차단됨",
+        "idle": "대기 중",
+        "needs_you": "확인 필요",
+        "no_agents_right_now": "지금은 에이전트가 없습니다",
+        "open_session": "{{name}} 열기",
+        "ready": "준비됨",
+        "working": "작업 중"
+      },
       "underwaterLabScene": {
         "deep_sea_lab": "심해 연구소",
         "research_station": "연구 기지",

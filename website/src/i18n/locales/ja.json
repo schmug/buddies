@@ -8862,6 +8862,15 @@
         "panda_office_scene": "パンダオフィスのシーン",
         "panda_office_scene_labels": "パンダオフィスシーンのラベル"
       },
+      "petCastScene": {
+        "blocked": "停止中",
+        "idle": "待機中",
+        "needs_you": "対応が必要",
+        "no_agents_right_now": "現在エージェントはいません",
+        "open_session": "{{name}} を開く",
+        "ready": "準備完了",
+        "working": "作業中"
+      },
       "underwaterLabScene": {
         "deep_sea_lab": "深海ラボ",
         "research_station": "研究ステーション",

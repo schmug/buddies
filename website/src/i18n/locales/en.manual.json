@@ -3029,6 +3029,15 @@
         "panda_office_scene_labels": "Panda office scene labels",
         "panda_den": "🐼 Panda Den"
       },
+      "petCastScene": {
+        "blocked": "Blocked",
+        "idle": "Idle",
+        "needs_you": "Needs you",
+        "no_agents_right_now": "No agents right now",
+        "open_session": "Open {{name}}",
+        "ready": "Ready",
+        "working": "Working"
+      },
       "underwaterLabScene": {
         "deep_sea_lab": "Deep Sea Lab",
         "research_station": "research station",

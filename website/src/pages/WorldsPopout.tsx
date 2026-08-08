@@ -2,6 +2,7 @@ import { safeSetItem } from '../utils/safeStorage'
 import { useState, useEffect } from 'react'
 import { useAgentSync } from '../hooks/useAgentSync'
 import { usePopoutSync } from '../hooks/usePopoutSync'
+import { useWebSocket } from '../hooks/useWebSocket'
 import { SCENES, SCENE_STORAGE_KEY, SCENE_LAYOUT_SCALE, type SceneKey } from './scenes/config'
 import { SCENE_COMPONENTS } from './scenes/components'
 import { useAppDispatch } from '../store'
@@ -21,6 +22,23 @@ export default function WorldsPopout() {
   const dispatch = useAppDispatch()
   const { agents } = useAgentSync()
   const { broadcastScene } = usePopoutSync(true, s => setScene(s as SceneKey))
+
+  /**
+   * The popout's own live transport.
+   *
+   * `/worlds-popout` is routed outside `<App/>`, in a separate window with a separate
+   * store, so it inherits none of the app shell's subscriptions. Slot polling alone
+   * carries no message stream, and the two crew states derived from one — `blocked`
+   * (an error-role message) and `ready` (an unread one) — would be permanently
+   * unreachable here: `failedSlots` would stay empty and `unreadSlots` would be a
+   * localStorage snapshot that only ever decays.
+   *
+   * The cost is one more socket per popout window, which is the same trade the
+   * fetchSlots interval below already makes. Relaying the app shell's state over the
+   * popout BroadcastChannel would avoid it, at the price of electing a leader to do
+   * the relaying — the coupling the popout exists to avoid.
+   */
+  useWebSocket()
 
   useEffect(() => {
     dispatch(fetchSlots())

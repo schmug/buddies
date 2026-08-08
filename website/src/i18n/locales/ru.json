@@ -9195,6 +9195,15 @@
         "panda_office_scene": "Сцена офиса панд",
         "panda_office_scene_labels": "Подписи сцены офиса панд"
       },
+      "petCastScene": {
+        "blocked": "Заблокирован",
+        "idle": "Простой",
+        "needs_you": "Нужны вы",
+        "no_agents_right_now": "Сейчас нет агентов",
+        "open_session": "Открыть {{name}}",
+        "ready": "Готово",
+        "working": "В работе"
+      },
       "underwaterLabScene": {
         "deep_sea_lab": "Глубоководная лаборатория",
         "research_station": "исследовательская станция",

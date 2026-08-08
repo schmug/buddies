@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
-import { Building2, Brain, Wand2, Waves, Rocket, Sparkles, TreePine, Ghost } from 'lucide-react'
+import { Building2, Brain, Wand2, Waves, Rocket, Sparkles, TreePine, Ghost, Users } from 'lucide-react'
 
-export type SceneKey = 'office' | 'panda' | 'neural' | 'wizard' | 'underwater' | 'mission' | 'serengeti' | 'ghost'
+export type SceneKey = 'crew' | 'office' | 'panda' | 'neural' | 'wizard' | 'underwater' | 'mission' | 'serengeti' | 'ghost'
 
 export interface SceneMeta {
   key: SceneKey
@@ -10,7 +10,17 @@ export interface SceneMeta {
   desc: string
 }
 
+/**
+ * `label` and `desc` are user-facing English and are NOT localised.
+ *
+ * They sit at module scope, which is exactly where a catalog lookup cannot go: a
+ * value resolved once at module evaluation freezes the boot language and never
+ * re-reads it. Localising them means moving the whole list behind a getter that
+ * every consumer calls per render — all nine entries plus both pages that map
+ * over them.
+ */
 export const SCENES: SceneMeta[] = [
+  { key: 'crew', label: 'Crew', icon: <Users className="lucide-inline" />, desc: 'Your agents as their own characters' },
   { key: 'office', label: 'Office', icon: <Building2 className="lucide-inline" />, desc: 'Classic pixel office' },
   { key: 'panda', label: 'Panda Den', icon: <Sparkles className="lucide-inline" />, desc: 'Bamboo forest workspace, all pandas' },
   { key: 'neural', label: 'Neural Net', icon: <Brain className="lucide-inline" />, desc: 'Constellation map' },
