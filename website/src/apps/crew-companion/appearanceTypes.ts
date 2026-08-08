@@ -26,16 +26,24 @@ export const REQUIRED_STATES = ['idle'] as const
  * "what a pack shows" can't drift apart (they had: the editor asked for Busy/Error/
  * Offline while the app also wanted done and loading art it never requested).
  *
- *   STATUS  — reactions driven by what the agent is doing. These are the three
- *             signals the app actually produces: a turn finished, a turn failed, a
- *             turn is running.
+ *   STATUS  — reactions driven by what the agent is doing: a turn finished, a turn
+ *             failed, a turn is running, a turn is waiting on the user.
  *   RANDOM  — spontaneous behaviour the pet plays on its own, plus any clips the
  *             author names themselves.
  *
  * `thinking` / `working` are kept as legacy aliases of `loading` so packs authored
  * before this split keep working; they're not offered as slots any more.
+ *
+ * `needsInput` is the pet's FOURTH status signal — after a turn finishing, failing,
+ * and running — and the only one the agent cannot clear by itself: work is blocked
+ * on the user, for an approval to grant or a question to answer.
+ *
+ * Optional like every other slot. A pack that omits it falls back through the
+ * resolver, so every pack authored before this slot existed keeps working and simply
+ * holds its earlier body while the bubble carries the message. Only `idle` is in
+ * REQUIRED_STATES, so nothing here can invalidate an existing manifest.
  */
-export const STATUS_STATES = ['done', 'error'] as const
+export const STATUS_STATES = ['done', 'error', 'needsInput'] as const
 
 /**
  * BREATHING — one drawing per phase of the guided exercise. All optional: a pack
@@ -106,6 +114,7 @@ export interface StateAnimationMap {
   // Status
   done?: string
   error?: string
+  needsInput?: string
   // Breathing — one per phase of the guided exercise, each falling back to idle
   inhale?: string
   hold?: string

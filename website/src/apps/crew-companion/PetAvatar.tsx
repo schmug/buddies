@@ -42,10 +42,13 @@ const DEFAULT_PACK = 'kiro-ghost'
  */
 export type PetState =
   | 'idle' | 'loading' | 'done' | 'error'
+  // Work is blocked on the user — an approval to grant, a question to answer.
+  // Distinct from `loading`: nothing is progressing until the human acts.
+  | 'needs-input'
   // Guided-breathing phases. Optional in a pack; each falls back to idle.
   | 'inhale' | 'hold' | 'exhale'
 
-type PackSlot = 'idle' | 'loading' | 'done' | 'inhale' | 'hold' | 'exhale'
+type PackSlot = 'idle' | 'loading' | 'done' | 'needsInput' | 'inhale' | 'hold' | 'exhale'
 
 const STATE_TO_SLOT: Record<PetState, PackSlot> = {
   idle: 'idle',
@@ -54,6 +57,9 @@ const STATE_TO_SLOT: Record<PetState, PackSlot> = {
   // Packs are not required to ship error art; the resolver falls back to idle
   // and the shake carries the meaning.
   error: 'idle',
+  // Optional like every other slot: a pack that draws no `needsInput` frame falls
+  // through the resolver to its idle body and lets the bubble carry the message.
+  'needs-input': 'needsInput',
   inhale: 'inhale',
   hold: 'hold',
   exhale: 'exhale',
@@ -72,6 +78,11 @@ const STATE_TO_ANIM: Record<PetState, PetAnim> = {
   loading: 'ponder-loop',
   done: 'celebrate',
   error: 'error',
+  // The head-cock, not the ponder loop: blocked-on-you is a request for attention,
+  // and the looping ponder would read as "still working" — the one thing it is not.
+  // It is also the motion a `curious` mood already selects, so a caller that sets
+  // both gets one coherent reaction rather than two competing ones.
+  'needs-input': 'curious',
   // No keyframe of our own during breathing: the overlay drives the scale, and a
   // second animation would fight the phase timing it is trying to express.
   inhale: null,
