@@ -2,7 +2,8 @@
 
 A desktop companion that reports what the crew is doing. An always-on-top character
 sits on the desktop, one sprite per chat session in an active turn trails behind it,
-and a bubble goes up when a turn finishes, fails, or blocks on the user. Around that
+and a bubble goes up when a turn finishes, fails, or blocks on the user — subject to the
+completion gate, which decides which of those are worth interrupting for. Around that
 status core it carries a wellbeing surface — break nudges, reminders written in plain
 language, and a guided breathing exercise — plus an avatar gallery and a pack editor.
 The overlay, panel and gallery windows render only in the Kiro Crew desktop (Electron)
@@ -12,9 +13,13 @@ shell; the dashboard page at `/crew-companion` is the browser-visible surface.
 Store, is opt-in, and its window surfaces need the Electron shell. `permissions`: `api`,
 `storage`, `network`, `events` (`crew-companion:fire`); `cron` is false.
 
-The backend runs IN-PROCESS under the gateway at `/api/apps/crew-companion/`. There is
-no second process, no loopback URL and no proxy hop, and `tests/test_manifest.py`
-asserts the absence of each so none can creep back. It also asserts that `setup.onEnable`
+The backend runs IN-PROCESS under the gateway at `/api/apps/crew-companion/`: no second
+process, no loopback URL, no proxy hop. Only the loopback URL is PINNED —
+`tests/test_manifest.py::test_declares_no_separate_process_backend` asserts that no
+`mcpServers` entry declares one. Nothing asserts that a proxy path cannot be re-added;
+`test_permissions_api_scopes_own_backend` asserts the PRESENCE of the in-process
+`/api/apps/crew-companion` prefix, which is a different guarantee. The suite also asserts
+that `setup.onEnable`
 and `openCommand` stay absent: the gateway rolls a failed enable BACK, so an enable that
 runs a command is an enable that can be impossible to complete. The windows follow the
 enabled state instead, which leaves nothing to fail and nothing to roll back.
@@ -38,13 +43,21 @@ enabled state instead, which leaves nothing to fail and nothing to roll back.
 
 ## The overlay window model
 
-One `BrowserWindow` per display, each covering that display's full bounds:
+One `BrowserWindow` per display AT OPEN TIME, each covering that display's full bounds:
 transparent, frameless, `alwaysOnTop`, `skipTaskbar`, non-focusable, visible on all
 workspaces and over full-screen apps, and created with `backgroundThrottling: false`
 (the companion animates continuously in a window that never holds focus, so Chromium
 would otherwise throttle it to a stall for the window's whole lifetime). Full-bounds
 rather than a small window because the companion moves around the screen, and a small
 window would need constant repositioning.
+
+"At open time" is literal, and it is the gap in this model. `openPetWindow` enumerates
+`screen.getAllDisplays()` once per call, `index.js` calls it only while `petWindowCount()`
+is 0, and nothing subscribes to `display-added`, `display-removed` or
+`display-metrics-changed`. A monitor plugged in while the app is enabled therefore gets no
+overlay until every existing overlay is torn down. Mochi maintains the invariant properly
+and is the precedent to follow when this is closed: `website/electron/mochi/petOverlays.js`
+binds all three `screen` events to a rebuild.
 
 **One companion per monitor is the design, not a defect.** Each overlay renders its own
 companion independently and the main process never transfers one between displays,
@@ -68,16 +81,21 @@ clicks that land in the gaps.
 
 Focus is granted only while the panel is open. The overlay is non-focusable so it never
 takes focus from the user's real work, but a non-focusable window receives no keystrokes
-at all and the panel has a text input. `index.js` narrows the grant to the panel's
-lifetime and calls `win.focus()` explicitly, because `setFocusable` alone does not move
-focus — without it the panel opens focusable but unfocused and the first keystroke goes
-to the previous app.
+at all and the panel has a text input. The narrowing lives in `pet.tsx`: it grants focus
+as it opens the panel and withdraws it on BOTH close paths — its own `closePanel`, and the
+`onPanelClosed` notification, which is what covers the panel window being dismissed by
+click-away, Escape or its own ✕ without the companion being told. `index.js` owns only the
+`crew-companion:focusable` IPC handler, where it calls `win.focus()` explicitly, because
+`setFocusable` alone does not move focus — without it the panel opens focusable but
+unfocused and the first keystroke goes to the previous app.
 
 ## The click-through invariant (do NOT weaken)
 
 The overlay covers whole displays, so every region it declares interactive is a hole
-punched in the user's desktop. All four layers therefore read an ABSENT cast as an
-EMPTY cast, deliberately and identically:
+punched in the user's desktop. An ABSENT cast therefore reads as an EMPTY cast, never as
+"keep what you had", and four layers hold that line. Three normalize it at runtime; the
+fourth, `petBridge.ts`, is the strongest of them, because it makes an absent cast
+unrepresentable at compile time rather than correcting it afterwards:
 
 | Layer | Where |
 |---|---|
@@ -191,6 +209,18 @@ a `chat_message` with `role: 'error'` followed by an ordinary `chat_done`, so wi
 recording it a broken turn is indistinguishable from a clean one. A user Stop is visible
 only as `stopping: true` on a `slots` frame while the cancel is in flight; a stopped turn
 is neither success nor failure, so it produces no bubble, no hop and no error shake.
+
+A Stop is not the only silence, and assuming so is the way to misread this app.
+`completionGate.ts` rules on every completion and skips four cases before any bubble is
+raised: the companion's OWN background agent (it must never announce its housekeeping), a
+slot whose start was never observed, the user's session-notifications preference, and any
+turn shorter than `TURN_NOTIFY_MIN_MS` (10s) — a blip, not news. The asymmetry between the
+last two is the invariant worth keeping: a FAILURE bypasses the preference
+(`sessionWatch.ts` passes `silent: failed ? false : opts.isSilent()`), because work that
+stopped because it broke is what the user most needs to hear, but it does NOT bypass the
+duration threshold, because a two-second failure is still noise. Suppression is about the
+BUBBLE only — `chat_done` records `unread` and `failedTurn` before the gate rules, so a
+silenced completion still shows up as `ready` or `blocked` in the status snapshot.
 
 **The dashboard SPA** feeds the same model from Redux. `useAgentSync` maps
 `dashboard.slots` together with `dashboard.failedSlots` and `dashboard.unreadSlots`, and
