@@ -16,6 +16,13 @@ const Module = require("module");
 function stubElectron() {
   const created = [];
   const ipcHandlers = {};
+  /** Mutable so a test can attach or detach a monitor mid-run. */
+  const displays = [
+    { id: 1, bounds: { x: 0, y: 0, width: 1440, height: 900 } },
+    { id: 2, bounds: { x: 1440, y: 0, width: 1920, height: 1080 } },
+  ];
+  /** event -> handlers, so a double-bind is observable rather than silent. */
+  const displayListeners = {};
 
   class FakeWindow {
     constructor(opts) {
@@ -26,6 +33,7 @@ function stubElectron() {
       this.workspaces = null;
       this.loadedUrl = "";
       this.shown = false;
+      this.bounds = { x: opts.x, y: opts.y, width: opts.width, height: opts.height };
       this._events = {};
       created.push(this);
     }
@@ -38,16 +46,29 @@ function stubElectron() {
     on(ev, cb) { this._events[ev] = cb; }
     showInactive() { this.shown = true; }
     isDestroyed() { return this.destroyed; }
-    destroy() { this.destroyed = true; }
+    getBounds() { return { ...this.bounds }; }
+    setBounds(b) { this.bounds = { ...b }; }
+    // Electron guarantees `closed` fires even for a forced destroy, and the
+    // overlay's per-window hitbox state is dropped from that handler alone.
+    destroy() {
+      if (this.destroyed) return;
+      this.destroyed = true;
+      if (this._events.closed) this._events.closed();
+    }
   }
 
   const electron = {
     BrowserWindow: FakeWindow,
     screen: {
-      getAllDisplays: () => [
-        { id: 1, bounds: { x: 0, y: 0, width: 1440, height: 900 } },
-        { id: 2, bounds: { x: 1440, y: 0, width: 1920, height: 1080 } },
-      ],
+      getAllDisplays: () => displays,
+      on(ev, cb) {
+        (displayListeners[ev] = displayListeners[ev] || []).push(cb);
+      },
+      removeListener(ev, cb) {
+        const list = displayListeners[ev] || [];
+        const i = list.indexOf(cb);
+        if (i >= 0) list.splice(i, 1);
+      },
     },
     ipcMain: { on: (ch, cb) => { ipcHandlers[ch] = cb; } },
     contextBridge: { exposeInMainWorld: () => {} },
@@ -65,6 +86,14 @@ function stubElectron() {
   return {
     created,
     ipcHandlers,
+    displays,
+    /** Fire an OS display event the way Electron's `screen` emitter would. */
+    emitDisplay(ev) {
+      for (const cb of [...(displayListeners[ev] || [])]) cb();
+    },
+    displayListenerCount(ev) {
+      return (displayListeners[ev] || []).length;
+    },
     restore() {
       Module._resolveFilename = realResolve;
       delete require.cache.electron;
@@ -190,6 +219,135 @@ test("no overlay is opened before a gateway origin is known", () => {
     overlay.setOverlayTarget("", "");
     overlay.openPetWindow();
     assert.strictEqual(overlay.petWindowCount(), 0, "deferred, not opened at a blank URL");
+  } finally {
+    stub.restore();
+  }
+});
+
+// ── display hot-plug ────────────────────────────────────────────────────────
+//
+// One overlay per display is an invariant, not a snapshot taken at open time. The
+// display set changes under a running app — a monitor is plugged in, a laptop is
+// undocked, a resolution changes — and the overlays have to follow or the companion
+// is missing on the new screen and a dead full-screen window is left behind on the
+// old one.
+
+test("a display attached while the companion is open gets its own overlay", () => {
+  const stub = stubElectron();
+  try {
+    const { overlay } = loadModules();
+    overlay.setOverlayTarget("http://localhost:5476", "");
+    overlay.openPetWindow();
+    assert.strictEqual(overlay.petWindowCount(), 2);
+
+    stub.displays.push({ id: 3, bounds: { x: 3360, y: 0, width: 2560, height: 1440 } });
+    stub.emitDisplay("display-added");
+
+    assert.strictEqual(overlay.petWindowCount(), 3, "the new monitor gets an overlay");
+    const added = stub.created[stub.created.length - 1];
+    assert.strictEqual(added.opts.x, 3360, "and it covers that display's bounds");
+    assert.strictEqual(added.opts.width, 2560);
+  } finally {
+    stub.restore();
+  }
+});
+
+test("an overlay created for a newly attached display starts click-through", () => {
+  const stub = stubElectron();
+  try {
+    const { overlay } = loadModules();
+    overlay.setOverlayTarget("http://localhost:5476", "");
+    overlay.openPetWindow();
+
+    stub.displays.push({ id: 3, bounds: { x: 3360, y: 0, width: 2560, height: 1440 } });
+    stub.emitDisplay("display-added");
+
+    // The window covers a whole monitor. One that accepted input on arrival would
+    // make that monitor unusable until the renderer's first hitbox report lands.
+    const added = stub.created[stub.created.length - 1];
+    assert.deepStrictEqual(added.ignoreMouse, { ignore: true, opts: { forward: true } });
+    assert.strictEqual(added.focusable, false);
+  } finally {
+    stub.restore();
+  }
+});
+
+test("a display detached while the companion is open loses its overlay", () => {
+  const stub = stubElectron();
+  try {
+    const { overlay } = loadModules();
+    overlay.setOverlayTarget("http://localhost:5476", "");
+    overlay.openPetWindow();
+    const second = stub.created[1];
+
+    stub.displays.pop(); // the second monitor is unplugged
+    stub.emitDisplay("display-removed");
+
+    assert.strictEqual(overlay.petWindowCount(), 1, "the orphaned overlay does not leak");
+    assert.strictEqual(second.destroyed, true, "and its window is actually torn down");
+    assert.strictEqual(overlay.isPetWindow(second), false, "nor is it still addressed");
+  } finally {
+    stub.restore();
+  }
+});
+
+test("a resolution change moves the overlay onto the display's new bounds", () => {
+  const stub = stubElectron();
+  try {
+    const { overlay } = loadModules();
+    overlay.setOverlayTarget("http://localhost:5476", "");
+    overlay.openPetWindow();
+    const first = stub.created[0];
+
+    stub.displays[0].bounds = { x: 0, y: 0, width: 2560, height: 1440 };
+    stub.displays[1].bounds = { x: 2560, y: 0, width: 1920, height: 1080 };
+    stub.emitDisplay("display-metrics-changed");
+
+    assert.strictEqual(overlay.petWindowCount(), 2, "no window is recreated");
+    assert.deepStrictEqual(first.getBounds(), { x: 0, y: 0, width: 2560, height: 1440 });
+    assert.deepStrictEqual(stub.created[1].getBounds(), {
+      x: 2560,
+      y: 0,
+      width: 1920,
+      height: 1080,
+    });
+  } finally {
+    stub.restore();
+  }
+});
+
+test("closed overlays stop following display changes", () => {
+  const stub = stubElectron();
+  try {
+    const { overlay } = loadModules();
+    overlay.setOverlayTarget("http://localhost:5476", "");
+    overlay.openPetWindow();
+    overlay.closePetWindow();
+
+    // The companion is closed because the app was disabled or the shell is quitting.
+    // A monitor plugged in afterwards must not put a companion back on screen.
+    stub.displays.push({ id: 3, bounds: { x: 3360, y: 0, width: 2560, height: 1440 } });
+    stub.emitDisplay("display-added");
+
+    assert.strictEqual(overlay.petWindowCount(), 0, "a disabled app stays off screen");
+  } finally {
+    stub.restore();
+  }
+});
+
+test("re-opening does not stack a second set of display listeners", () => {
+  const stub = stubElectron();
+  try {
+    const { overlay } = loadModules();
+    overlay.setOverlayTarget("http://localhost:5476", "");
+    overlay.openPetWindow();
+    overlay.closePetWindow();
+    overlay.openPetWindow();
+    overlay.openPetWindow();
+
+    for (const ev of ["display-added", "display-removed", "display-metrics-changed"]) {
+      assert.strictEqual(stub.displayListenerCount(ev), 1, `${ev} bound exactly once`);
+    }
   } finally {
     stub.restore();
   }

@@ -1,10 +1,11 @@
 /**
  * petOverlay.js — the companion's transparent, always-on-top, click-through window.
  *
- * One overlay per display, each covering that display's full bounds. Full-bounds
- * rather than a small window because the companion moves around the screen and a
- * small window would need constant repositioning; covering everything and being
- * click-through is simpler and is what the reference implementation does.
+ * One overlay per display, each covering that display's full bounds, and kept that
+ * way for as long as the overlays are open — the display set changes under a running
+ * app. Full-bounds rather than a small window because the companion moves around the
+ * screen and a small window would need constant repositioning; covering everything
+ * and being click-through is simpler and is what the reference implementation does.
  *
  * THE CLICK-THROUGH RULE IS LOAD-BEARING. The window sits over the entire desktop,
  * so one that accepted clicks would make the machine unusable. Input is refused by
@@ -39,6 +40,8 @@ const HITBOX_POLL_MS = 16;
 
 let pollTimer = null;
 let ipcRegistered = false;
+/** True while the display-change subscription is live. See `bindDisplayListeners`. */
+let displayListenersBound = false;
 
 let baseUrl = "";
 let credential = "";
@@ -97,15 +100,43 @@ function createOverlayFor(display) {
   return win;
 }
 
-/** Open an overlay on every display. Idempotent per display. */
-function openPetWindow() {
-  if (!baseUrl) {
-    log("crew-companion: no gateway origin yet, deferring overlay");
-    return;
+/**
+ * Drop one overlay: forget the display it belonged to, then tear the window down.
+ *
+ * The window's own `closed` handler is what removes it from the hitbox and
+ * ignore-state maps, and Electron guarantees `closed` fires even for a forced
+ * destroy — so those maps must never be cleaned up here instead.
+ */
+function destroyOverlay(displayId, win) {
+  overlays.delete(displayId);
+  if (win && !win.isDestroyed()) win.destroy();
+}
+
+/**
+ * Make the overlay set match the displays that exist right now: one overlay per
+ * display, each covering that display's full bounds. Idempotent, so the initial
+ * open and every later display event both go through here.
+ */
+function syncOverlaysToDisplays() {
+  const displays = screen.getAllDisplays();
+  const liveIds = new Set(displays.map((d) => d.id));
+
+  // Displays that went away. Their overlay is a full-screen window with nothing
+  // under it any more, so leaving it behind leaks a window per unplug.
+  for (const [id, win] of [...overlays]) {
+    if (liveIds.has(id)) continue;
+    destroyOverlay(id, win);
+    log(`crew-companion: overlay closed for detached display ${id}`);
   }
-  for (const display of screen.getAllDisplays()) {
+
+  for (const display of displays) {
     const existing = overlays.get(display.id);
-    if (existing && !existing.isDestroyed()) continue;
+    if (existing && !existing.isDestroyed()) {
+      // A resolution or arrangement change moves the display out from under its
+      // overlay; the window has to follow or it covers the wrong region.
+      existing.setBounds(display.bounds);
+      continue;
+    }
     try {
       overlays.set(display.id, createOverlayFor(display));
       log(`crew-companion: overlay opened on display ${display.id}`);
@@ -115,12 +146,48 @@ function openPetWindow() {
   }
 }
 
+/**
+ * Follow the display set for as long as overlays are open.
+ *
+ * One overlay per display is an invariant, not a snapshot: monitors are plugged in,
+ * laptops are undocked and resolutions change under a running app. Without this the
+ * companion is simply absent on a display attached later, and a detached one leaves
+ * its window behind.
+ *
+ * The subscription is dropped again in `closePetWindow` on purpose. The companion is
+ * closed when the app is disabled or the shell is quitting, and a listener still
+ * running then would put a companion back on screen for an app nobody has enabled.
+ */
+function bindDisplayListeners() {
+  if (displayListenersBound) return;
+  displayListenersBound = true;
+  screen.on("display-added", syncOverlaysToDisplays);
+  screen.on("display-removed", syncOverlaysToDisplays);
+  screen.on("display-metrics-changed", syncOverlaysToDisplays);
+}
+
+function unbindDisplayListeners() {
+  if (!displayListenersBound) return;
+  displayListenersBound = false;
+  screen.removeListener("display-added", syncOverlaysToDisplays);
+  screen.removeListener("display-removed", syncOverlaysToDisplays);
+  screen.removeListener("display-metrics-changed", syncOverlaysToDisplays);
+}
+
+/** Open an overlay on every display, and keep that true. Idempotent per display. */
+function openPetWindow() {
+  if (!baseUrl) {
+    log("crew-companion: no gateway origin yet, deferring overlay");
+    return;
+  }
+  syncOverlaysToDisplays();
+  bindDisplayListeners();
+}
+
 /** Close every overlay. Idempotent. */
 function closePetWindow() {
-  for (const [id, win] of [...overlays]) {
-    overlays.delete(id);
-    if (win && !win.isDestroyed()) win.destroy();
-  }
+  unbindDisplayListeners();
+  for (const [id, win] of [...overlays]) destroyOverlay(id, win);
 }
 
 function petWindowCount() {

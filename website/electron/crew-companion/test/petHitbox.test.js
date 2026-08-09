@@ -54,6 +54,10 @@ function stubElectron() {
       ],
       // Not used by the direct toggle tests, but present so the poll never throws.
       getCursorScreenPoint: () => ({ x: -1, y: -1 }),
+      // The overlays subscribe to display hot-plug while they are open; these tests
+      // never fire one. Coverage of that lives in petOverlay.test.js.
+      on() {},
+      removeListener() {},
     },
     ipcMain: { on: (ch, cb) => { ipcHandlers[ch] = cb; } },
     contextBridge: { exposeInMainWorld: () => {} },
