@@ -1,4 +1,8 @@
-/** Shared contract between useSSE.ts (dispatcher) and useNotificationSound.ts (listener). */
+/**
+ * Shared contract between useWebSocket.ts (the sole dispatcher — the `/api/ws`
+ * multiplexed socket is the dashboard's live transport) and its listeners,
+ * useNotificationSound.ts and ThemeExperienceLayer.tsx.
+ */
 export const MC_NOTIFICATION_EVENT = 'mc-notification' as const
 export const MC_SOUND_SETTINGS_CHANGED_EVENT = 'mc-notification-sound-changed' as const
 

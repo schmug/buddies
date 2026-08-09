@@ -185,7 +185,7 @@ export function presetForKind(kind: string | undefined, settings: SoundSettings)
   return settings.perCategory.all ?? 'chime'
 }
 
-/** Installs a window listener that plays sounds on notification SSE events. */
+/** Installs a window listener that plays sounds on notification events. */
 export function useNotificationSound(): void {
   useEffect(() => {
     let current = loadSoundSettings()
