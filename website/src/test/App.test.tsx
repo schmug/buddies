@@ -178,6 +178,22 @@ describe('App routing', () => {
       return api
     }
 
+    // freshFirstRun swaps themeBoot to a PERSISTENT first-run resolution and
+    // wipes localStorage. Both outlive the test: without restoring them, every
+    // later <App /> render in this file boots into first-run and unrelated
+    // assertions (e.g. the credits-pill modal) fail depending on run order.
+    afterEach(async () => {
+      const { api } = await import('../api/client')
+      vi.mocked(api.themeBoot).mockResolvedValue({
+        mode: '',
+        color: '',
+        onboarded: true,
+        import_onboarded: true,
+      } as never)
+      localStorage.setItem('mc-onboarded', '1')
+      localStorage.setItem('mc-import-onboarded', '1')
+    })
+
     it('opens after Import setup and gates the Customize chapter', async () => {
       await freshFirstRun()
       // Nothing to import: the import chapter completes itself, and Privacy is
