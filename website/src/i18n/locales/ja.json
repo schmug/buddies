@@ -798,6 +798,10 @@
         "through_mouth": "口から",
         "through_nose": "鼻から"
       },
+      "cast": {
+        "more_agents_other": "他に {{count}} 個のエージェントが実行中",
+        "open_in_worlds": "{{name}} をエージェントワールドで開く"
+      },
       "color": {
         "belly": "おなか",
         "bodyFur": "体・毛",

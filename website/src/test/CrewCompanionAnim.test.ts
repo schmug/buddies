@@ -62,6 +62,41 @@ describe('activeAnimFor — precedence', () => {
       expect(activeAnimFor({ state })).toBeNull()
     }
   })
+
+  it('MOVES when an agent is waiting on the user', () => {
+    // PRE-STAGED, not yet reachable: the companion's aggregate still routes
+    // `needs-input` to `loading`, so today it ponder-loops like any busy crew (that
+    // current behaviour is pinned in CrewCast.test.tsx). This becomes live the moment
+    // the mapping is repointed — and without it the companion would then be perfectly
+    // still for the one state that exists to demand attention, because the live pet
+    // always passes `anim` explicitly and PetAvatar's STATE_TO_ANIM is therefore
+    // never consulted to cover for it.
+    expect(activeAnimFor({ state: 'needs-input' })).toBe('curious')
+  })
+
+  it('reuses the curious head-cock, so the mood and the state cannot fight', () => {
+    expect(activeAnimFor({ state: 'needs-input' }))
+      .toBe(activeAnimFor({ state: 'idle', mood: 'curious' }))
+  })
+
+  it('keeps events above waiting on the user, and waiting above merely busy', () => {
+    // error and celebrate are things that HAPPENED; this is a condition being held.
+    expect(activeAnimFor({ state: 'error', mood: 'curious' })).toBe('error')
+    expect(activeAnimFor({ state: 'done', mood: 'curious' })).toBe('celebrate')
+    // A turn blocked on a human outranks one that is only busy.
+    expect(activeAnimFor({ state: 'needs-input' })).not.toBe(activeAnimFor({ state: 'loading' }))
+  })
+
+  it('goes quiet waiting on the user while docked, like every other held motion', () => {
+    expect(activeAnimFor({ state: 'needs-input', docked: true })).toBeNull()
+  })
+
+  it('pins that the head-cock is a one-shot, so a held state must replay it', () => {
+    // This stylesheet fact is WHY pet.tsx re-triggers the motion through animEpoch:
+    // kg-curious ends back at neutral, so `both` holds a pose indistinguishable from
+    // idle. If it ever becomes `infinite`, that replay timer is dead weight.
+    expect(CSS).toMatch(/\.kg-anim-curious\s*\{\s*animation:\s*kg-curious\s+2000ms[^;]*both;/)
+  })
 })
 
 describe('animClassFor', () => {

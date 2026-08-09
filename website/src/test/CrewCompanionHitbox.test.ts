@@ -9,8 +9,10 @@
  *
  * The cast half of the same contract is covered in
  * `apps/crew-companion/hitbox.test.ts`. The `toHaveBeenCalledWith` arity below is
- * load-bearing: it fails the day `useMouseForward` starts sending cast rects, which
- * is the signal to widen these expectations rather than a flake to work around.
+ * load-bearing in the other direction now: `useMouseForward` is the SINGLE reporting
+ * path, and a report that omits the cast clears it — every sprite silently becomes
+ * click-through. So each expectation pins all three arguments, including the
+ * re-assert paths a second reporter would be tempted to shortcut.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook } from '@testing-library/react'
@@ -124,16 +126,18 @@ describe('useMouseForward — reports the companion and bubble rects', () => {
   })
 
   const dragging = { current: false } as MutableRefObject<boolean>
+  const sprite = { x: 20, y: 30, w: 56, h: 56 }
 
-  it('reports the companion box, and no bubble, at rest', () => {
-    renderHook(() => useMouseForward({ pos: { x: 100, y: 120 }, bubbleRect: null, dragging }))
-    expect(update).toHaveBeenCalledWith({ x: 100, y: 120, w: PET_W, h: PET_H }, null)
+  it('reports the companion box, an empty cast, and no bubble, at rest', () => {
+    renderHook(() =>
+      useMouseForward({ pos: { x: 100, y: 120 }, bubbleRect: null, dragging, cast: [] }))
+    expect(update).toHaveBeenCalledWith({ x: 100, y: 120, w: PET_W, h: PET_H }, null, [])
   })
 
   it('reports the bubble rect once a bubble is showing', () => {
     const { rerender } = renderHook(
       ({ bubbleRect }: { bubbleRect: Rect | null }) =>
-        useMouseForward({ pos: { x: 100, y: 120 }, bubbleRect, dragging }),
+        useMouseForward({ pos: { x: 100, y: 120 }, bubbleRect, dragging, cast: [] }),
       { initialProps: { bubbleRect: null as Rect | null } },
     )
     update.mockClear()
@@ -141,6 +145,35 @@ describe('useMouseForward — reports the companion and bubble rects', () => {
     expect(update).toHaveBeenCalledWith(
       { x: 100, y: 120, w: PET_W, h: PET_H },
       { x: 60, y: 20, w: 240, h: 70 + BUBBLE_HIT_PAD },
+      [],
     )
+  })
+
+  it('carries the cast rects on the same report as the companion', () => {
+    renderHook(() =>
+      useMouseForward({ pos: { x: 100, y: 120 }, bubbleRect: null, dragging, cast: [sprite] }))
+    expect(update).toHaveBeenCalledWith({ x: 100, y: 120, w: PET_W, h: PET_H }, null, [sprite])
+  })
+
+  it('re-reports when only the cast moved', () => {
+    const { rerender } = renderHook(
+      ({ cast }: { cast: typeof sprite[] }) =>
+        useMouseForward({ pos: { x: 100, y: 120 }, bubbleRect: null, dragging, cast }),
+      { initialProps: { cast: [sprite] } },
+    )
+    update.mockClear()
+    const moved = { ...sprite, x: sprite.x + 40 }
+    rerender({ cast: [moved] })
+    expect(update).toHaveBeenCalledWith({ x: 100, y: 120, w: PET_W, h: PET_H }, null, [moved])
+  })
+
+  it('keeps the cast on the post-drag re-assert, which would otherwise clear it', async () => {
+    renderHook(() =>
+      useMouseForward({ pos: { x: 100, y: 120 }, bubbleRect: null, dragging, cast: [sprite] }))
+    update.mockClear()
+    window.dispatchEvent(new Event('mouseup'))
+    // The re-assert is deferred to a frame so it reads the settled post-drag position.
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+    expect(update).toHaveBeenCalledWith({ x: 100, y: 120, w: PET_W, h: PET_H }, null, [sprite])
   })
 })

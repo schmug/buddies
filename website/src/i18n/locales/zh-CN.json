@@ -798,6 +798,10 @@
         "through_mouth": "用嘴巴",
         "through_nose": "用鼻子"
       },
+      "cast": {
+        "more_agents_other": "还有 {{count}} 个代理在运行",
+        "open_in_worlds": "在代理世界中打开 {{name}}"
+      },
       "color": {
         "belly": "肚子",
         "bodyFur": "身体 / 毛发",
