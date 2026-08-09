@@ -16,6 +16,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 
 import { PetAvatar, type PetState } from './PetAvatar'
+import { useAttentionReplay } from './useAttentionReplay'
 import { castSlotOffset, CAST_PX } from './castLayout'
 import type { AgentState, CrewAgent, CrewStatus } from './crewStatus'
 import type { HitRect } from './hitbox'
@@ -31,25 +32,26 @@ export interface CastAppearance {
 /**
  * What a cast member looks like.
  *
- * `PetState` has no slot for "waiting on you", so both cast states wear the busy
- * pose and the MOOD carries the difference: a turn blocked on the user's approval
- * has not stopped running, and `curious` is the face the companion already uses for
- * an approval bubble (see pet.tsx's `onApproval`) — waiting on you is a question,
- * not a failure, so it must not borrow the error shake.
+ * A turn blocked on the user wears the `needs-input` pose, and keeps the `curious`
+ * mood alongside it: `curious` is the face the companion already uses for an approval
+ * bubble (see pet.tsx's `onApproval`), and it selects the SAME head-cock that
+ * `PetAvatar.STATE_TO_ANIM` gives `needs-input`, so the mood and the state cannot
+ * fight over one body. Waiting on you is a question, not a failure, so it must not
+ * borrow the error shake.
  *
  * Only `running` and `needs-input` can reach the cast (`isCastEligible`); anything
  * else falls back to the resting pose rather than throwing at a caller that has
  * already decided to draw something.
  */
 export function castAppearance(state: AgentState): CastAppearance {
-  if (state === 'needs-input') return { state: 'loading', mood: 'curious' }
+  if (state === 'needs-input') return { state: 'needs-input', mood: 'curious' }
   if (state === 'running') return { state: 'loading' }
   return { state: 'idle' }
 }
 
 /** The companion's resting pose for each aggregate crew state. */
 const AGGREGATE_TO_PET: Record<AgentState, PetState> = {
-  'needs-input': 'loading',
+  'needs-input': 'needs-input',
   blocked: 'error',
   ready: 'done',
   running: 'loading',
@@ -70,8 +72,18 @@ export function restingPetState(aggregate: AgentState, reaction: PetState): PetS
 }
 
 /**
- * Aggregate states whose companion motion LOOPS, so it may be driven by simply being
- * in that state.
+ * Aggregate states whose motion the companion may follow for as long as it is in
+ * them, rather than being flattened to `idle`.
+ *
+ * Only `running` sustains itself: `kg-ponder` is `infinite`, so being in the state is
+ * the whole mechanism. `needs-input` does NOT — `kg-curious` is a 2000ms one-shot, so
+ * every surface holding it must replay the keyframes on `ATTENTION_REPLAY_MS`
+ * (`useAttentionReplay`, and pet.tsx's own reaction epoch) or it settles to neutral.
+ * `idle`'s membership is inert: `AGGREGATE_TO_PET['idle']` is `idle`, so both branches
+ * below return the same value and its motion is whatever fidget `IDLE_FIDGET_ANIMS`
+ * offered — a pool of bounded one-shots, not a loop, and chosen by the caller rather
+ * than by this set. It is listed so the set reads as a full enumeration of the states
+ * that are not flattened.
  *
  * Everything else resolves to a one-shot keyframe — `kg-celebrate` (900ms) and
  * `kg-error` (800ms). Both end back at neutral and neither is in `POSED_ANIMS`, so
@@ -185,6 +197,16 @@ export function CrewCast({
     onRects(rects)
   }, [placed, onRects])
 
+  /*
+   * A sprite wearing the head-cock is HOLDING a 2000ms one-shot, so without this it
+   * settles to neutral and is the stillest thing on the desktop — beside `running`
+   * sprites that bob forever. The main companion is replayed the same way from
+   * pet.tsx; this is the cast's half of that.
+   */
+  const attentionEpoch = useAttentionReplay(
+    placed.some(({ agent }) => agent.state === 'needs-input'),
+  )
+
   return (
     <>
       {placed.map(({ agent, x, y }) => {
@@ -219,7 +241,17 @@ export function CrewCast({
               cursor: 'pointer',
             }}
           >
-            <PetAvatar size={CAST_PX} state={look.state} mood={look.mood} />
+            {/*
+              The epoch goes ONLY to the sprite holding the one-shot. `ponder-loop` is
+              `infinite`, so remounting a busy sprite would restart its bob part-way
+              through a cycle and read as a stutter.
+            */}
+            <PetAvatar
+              size={CAST_PX}
+              state={look.state}
+              mood={look.mood}
+              animEpoch={look.state === 'needs-input' ? attentionEpoch : 0}
+            />
           </motion.button>
         )
       })}

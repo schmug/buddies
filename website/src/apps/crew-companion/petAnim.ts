@@ -92,6 +92,20 @@ export const CELEBRATE_MS = 900
  */
 export const CELEBRATE_PROP_HOLD_MS = 450
 
+/**
+ * How often a HELD head-cock is replayed, on every surface that can hold one.
+ *
+ * `.kg-anim-curious` is a 2000ms one-shot that ends back at neutral, and `needs-input`
+ * is the only state that persists until a person acts — so without a replay the
+ * surface goes still for the one thing that exists to be noticed, and stiller than the
+ * `running` agents beside it, whose `ponder-loop` is `infinite`. Well above the
+ * keyframe's own length, so it reads as a periodic glance rather than a twitch.
+ *
+ * Lives beside the keyframe lengths it is derived from because three surfaces hold the
+ * state: the main companion (pet.tsx), the desktop cast sprites and the crew scene.
+ */
+export const ATTENTION_REPLAY_MS = 8_000
+
 export function activeAnimFor({ state, mood, docked = false, walking = false, idleAnim = null }: AnimInputs): PetAnim {
   if (state === 'error' && !docked) return 'error'
   if (state === 'done') return 'celebrate'
@@ -114,16 +128,15 @@ export function activeAnimFor({ state, mood, docked = false, walking = false, id
    * are events and this is a resting condition, and above `loading` because a turn
    * blocked on a human outranks one that is merely busy.
    *
-   * DORMANT until the companion's aggregate maps `needs-input` to its own pack slot:
-   * `CrewCast.AGGREGATE_TO_PET` routes it to `loading`, so the state reaching here is
-   * `loading` and the companion ponder-loops exactly as it does for a merely-busy
-   * crew. `AnimInputs.state` is a `string`, so nothing type-checks that gap shut —
-   * the branch is pre-staged so the repoint stays a one-line data change.
+   * `AnimInputs.state` is a `string`, not a `PetState`, so nothing type-checks that
+   * this branch is reachable: it depends entirely on `CrewCast.AGGREGATE_TO_PET`
+   * routing `needs-input` to its own pack slot rather than aliasing it onto
+   * `loading`. A test pins the reachability for that reason.
    *
    * `kg-curious` is a 2000ms one-shot that ends back at neutral, and this is the only
-   * state that persists until a person acts — so once it IS reachable, a caller that
-   * holds it must replay the keyframes (bump `animEpoch`) or the companion goes still
-   * for the one condition that exists to be noticed.
+   * state that persists until a person acts — so a caller that holds it must replay
+   * the keyframes (bump `animEpoch`, see pet.tsx's `ATTENTION_REPLAY_MS`) or the
+   * companion goes still for the one condition that exists to be noticed.
    */
   if (state === 'needs-input' && !docked) return 'curious'
   if (state === 'loading' && !docked) return 'ponder-loop'

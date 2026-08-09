@@ -6,8 +6,8 @@
  * the overlay is click-through except over reported rects: a sprite whose rect is
  * missing looks clickable and silently is not.
  */
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import {
@@ -18,7 +18,7 @@ import {
   sameCrewView,
 } from './CrewCast'
 import { CAST_PX } from './castLayout'
-import { activeAnimFor } from './petAnim'
+import { activeAnimFor, ATTENTION_REPLAY_MS } from './petAnim'
 import { deriveCrewStatus, type CrewAgent, type StatusInput } from './crewStatus'
 
 const agent = (id: string, state: CrewAgent['state'] = 'running'): CrewAgent => ({
@@ -128,16 +128,106 @@ describe('CrewCast', () => {
   })
 })
 
+/**
+ * A sprite that HOLDS the head-cock has to be re-triggered, or it is the stillest
+ * thing on the desktop.
+ *
+ * `kg-curious` is `2000ms … both` and its 100% keyframe is its 0% keyframe, so after
+ * two seconds a waiting sprite sits at neutral — while the `running` sprites beside
+ * it bob forever on `ponder-loop`, which is `infinite`. That inverts the priority the
+ * state exists to express: the one agent that cannot progress without you would be
+ * the only one not moving. `curious` is in `POSED_ANIMS`, so the eyes still hold an
+ * offset — but an expression is not motion, and it is motion that catches an eye
+ * crossing the desktop.
+ *
+ * PetAvatar keys its animated span on `animEpoch`, so bumping the epoch remounts the
+ * node and the keyframes re-fire. Asserted on NODE IDENTITY rather than on a class
+ * name: the class never changes, and it is the remount that replays the motion.
+ */
+describe('CrewCast replays the head-cock while a sprite waits on the user', () => {
+  const animSpan = (c: HTMLElement) => c.querySelector('span[aria-hidden] > span')
+
+  const castOf = (...cast: CrewAgent[]) => (
+    <CrewCast ready cast={cast} overflow={0} petPos={{ x: 0, y: 0 }}
+      onSelect={vi.fn()} onRects={vi.fn()} />
+  )
+
+  beforeEach(() => { vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers() })
+
+  it('remounts the waiting sprite once per replay interval', () => {
+    const { container } = render(castOf(agent('a', 'needs-input')))
+    const first = animSpan(container)
+    expect(first?.className).toContain('kg-anim-curious')
+
+    act(() => { vi.advanceTimersByTime(ATTENTION_REPLAY_MS) })
+    const second = animSpan(container)
+    expect(second?.className).toContain('kg-anim-curious')
+    expect(second).not.toBe(first)
+
+    act(() => { vi.advanceTimersByTime(ATTENTION_REPLAY_MS) })
+    expect(animSpan(container)).not.toBe(second)
+  })
+
+  it('holds the sprite still between replays, so it is a glance and not a twitch', () => {
+    const { container } = render(castOf(agent('a', 'needs-input')))
+    const first = animSpan(container)
+    act(() => { vi.advanceTimersByTime(ATTENTION_REPLAY_MS - 1) })
+    expect(animSpan(container)).toBe(first)
+  })
+
+  it('never churns a busy sprite — ponder-loop is infinite and a remount restarts it', () => {
+    // Remounting a looping motion would restart the bob from 0% at a random point in
+    // its cycle, which reads as a stutter. Only the held one-shot is replayed.
+    const { container } = render(castOf(agent('busy', 'running'), agent('a', 'needs-input')))
+    const busy = container.querySelectorAll('span[aria-hidden] > span')[0]
+    expect(busy.className).toContain('kg-anim-ponder-loop')
+    act(() => { vi.advanceTimersByTime(ATTENTION_REPLAY_MS * 3) })
+    expect(container.querySelectorAll('span[aria-hidden] > span')[0]).toBe(busy)
+  })
+
+  it('starts no timer at all when nobody is waiting', () => {
+    render(castOf(agent('busy', 'running')))
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('stays inert under prefers-reduced-motion', () => {
+    // The stylesheet sets `.kg-anim-curious { animation: none }` there, so a replay
+    // would remount the node to play nothing.
+    const real = window.matchMedia
+    window.matchMedia = ((q: string) => ({
+      matches: q.includes('prefers-reduced-motion'), media: q, onchange: null,
+      addEventListener: () => {}, removeEventListener: () => {},
+      addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
+    })) as unknown as typeof window.matchMedia
+    try {
+      const { container } = render(castOf(agent('a', 'needs-input')))
+      const first = animSpan(container)
+      act(() => { vi.advanceTimersByTime(ATTENTION_REPLAY_MS * 3) })
+      expect(animSpan(container)).toBe(first)
+    } finally {
+      window.matchMedia = real
+    }
+  })
+})
+
 describe('castAppearance', () => {
   it('gives a running agent the busy pose', () => {
     expect(castAppearance('running').state).toBe('loading')
   })
 
   it('distinguishes an agent waiting on the user from one merely working', () => {
+    // The STATE has to carry it, not the mood alone: a sprite is handed no explicit
+    // `anim`, so PetAvatar resolves one from STATE_TO_ANIM — and the busy pose there
+    // is the ponder loop, which reads as "still working" at exactly the moment the
+    // user must be told nothing is progressing.
+    expect(castAppearance('needs-input').state).toBe('needs-input')
     expect(castAppearance('needs-input')).not.toEqual(castAppearance('running'))
   })
 
   it('marks the waiting agent as a question rather than a failure', () => {
+    // `curious` selects the same head-cock STATE_TO_ANIM gives `needs-input`, so the
+    // mood path and the state path agree instead of fighting over one body.
     expect(castAppearance('needs-input').mood).toBe('curious')
     expect(castAppearance('running').mood).toBeUndefined()
   })
@@ -190,6 +280,9 @@ describe('restingPetState', () => {
     expect(restingPetState('ready', 'idle')).toBe('done')
     expect(restingPetState('blocked', 'idle')).toBe('error')
     expect(restingPetState('idle', 'idle')).toBe('idle')
+    // Its own pack slot, not the busy alias: this is the art PetAvatar resolves, and
+    // its idle-only fallback is what keeps an art-less pack off a working body.
+    expect(restingPetState('needs-input', 'idle')).toBe('needs-input')
   })
 
   it('lets a live reaction outrank the ambient aggregate', () => {
@@ -206,7 +299,20 @@ describe('motionPetState — the ART may be held, the KEYFRAMES may not', () => 
   it('keeps a sustained aggregate driving its looping motion', () => {
     // ponder-loop is `infinite`, so holding it is the intent.
     expect(activeAnimFor({ state: motionPetState('running', 'idle') })).toBe('ponder-loop')
-    expect(activeAnimFor({ state: motionPetState('needs-input', 'idle') })).toBe('ponder-loop')
+  })
+
+  it('gives a crew waiting on the user the head-cock, never the busy ponder', () => {
+    /*
+     * This is what makes `activeAnimFor`'s `needs-input` branch REACHABLE.
+     * `AnimInputs.state` is a bare `string`, so nothing type-checks the hand-off:
+     * aliasing the aggregate back onto `loading` would compile, and the companion
+     * would ponder-loop — "still working" — for the one condition that means the
+     * opposite. Asserted at both ends for that reason, not just on the final motion.
+     */
+    expect(motionPetState('needs-input', 'idle')).toBe('needs-input')
+    expect(activeAnimFor({ state: motionPetState('needs-input', 'idle') })).toBe('curious')
+    expect(activeAnimFor({ state: motionPetState('needs-input', 'idle') }))
+      .not.toBe(activeAnimFor({ state: motionPetState('running', 'idle') }))
   })
 
   it('plays celebrate ONCE on arriving at ready, via the reaction the arrival raises', () => {
