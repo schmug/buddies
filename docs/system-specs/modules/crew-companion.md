@@ -43,21 +43,31 @@ enabled state instead, which leaves nothing to fail and nothing to roll back.
 
 ## The overlay window model
 
-One `BrowserWindow` per display AT OPEN TIME, each covering that display's full bounds:
-transparent, frameless, `alwaysOnTop`, `skipTaskbar`, non-focusable, visible on all
-workspaces and over full-screen apps, and created with `backgroundThrottling: false`
-(the companion animates continuously in a window that never holds focus, so Chromium
-would otherwise throttle it to a stall for the window's whole lifetime). Full-bounds
-rather than a small window because the companion moves around the screen, and a small
-window would need constant repositioning.
+One `BrowserWindow` per display, each covering that display's full bounds: transparent,
+frameless, `alwaysOnTop`, `skipTaskbar`, non-focusable, visible on all workspaces and
+over full-screen apps, and created with `backgroundThrottling: false` (the companion
+animates continuously in a window that never holds focus, so Chromium would otherwise
+throttle it to a stall for the window's whole lifetime). Full-bounds rather than a small
+window because the companion moves around the screen, and a small window would need
+constant repositioning.
 
-"At open time" is literal, and it is the gap in this model. `openPetWindow` enumerates
-`screen.getAllDisplays()` once per call, `index.js` calls it only while `petWindowCount()`
-is 0, and nothing subscribes to `display-added`, `display-removed` or
-`display-metrics-changed`. A monitor plugged in while the app is enabled therefore gets no
-overlay until every existing overlay is torn down. Mochi maintains the invariant properly
-and is the precedent to follow when this is closed: `website/electron/mochi/petOverlays.js`
-binds all three `screen` events to a rebuild.
+**One per display is an invariant, not a snapshot taken at open time.** The display set
+changes under a running app, so `petOverlay.js` subscribes to `display-added`,
+`display-removed` and `display-metrics-changed` while the overlays are open, and every
+one of them re-runs the same `syncOverlaysToDisplays` reconcile that the initial open
+runs: destroy the overlay of a display that went away, create one for a display that
+appeared, and `setBounds` the rest onto their display's current bounds. Mochi does the
+same in `website/electron/mochi/petOverlays.js` and is the precedent this follows.
+`index.js` still opens only while `petWindowCount()` is 0 — it no longer has to notice
+display changes, because the subscription does.
+
+The subscription is dropped again in `closePetWindow`, and that is load-bearing rather
+than tidiness: the overlays are closed when the app is disabled or the shell is quitting,
+so a listener still running then would put a companion back on screen for an app nobody
+has enabled. An overlay created for a newly attached display goes through
+`createOverlayFor` like any other, so it starts click-through and non-focusable; a
+destroyed one drops out of the hitbox and ignore-state maps through its own `closed`
+handler, which Electron fires even for a forced `destroy()`.
 
 **One companion per monitor is the design, not a defect.** Each overlay renders its own
 companion independently and the main process never transfers one between displays,
