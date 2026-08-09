@@ -147,26 +147,96 @@ describe('PetCastScene popover toggle', () => {
 })
 
 /**
- * The popover is ~272x250. Anchoring it at the character's own origin paints it
- * OVER that character, and the second click — the gesture that closes it — then
- * lands on the popover and does nothing. Reproduced with a real cursor; a
- * synthetic `element.click()` cannot see it, because dispatching straight at a
- * node never consults what is painted on top of it.
+ * Anchoring the popover at the character's own origin paints it OVER that character,
+ * and the second click — the gesture that closes it — then lands on the popover and
+ * does nothing. Anchoring below without clamping is the mirror failure: the scene is
+ * `overflow: hidden`, so a second-row character's popover has its bottom cut off,
+ * taking the approve/deny row and the composer with it.
+ *
+ * Both were reproduced with a real cursor. A synthetic `element.click()` sees
+ * neither, because dispatching straight at a node never consults what is painted on
+ * top of it or whether the node is clipped.
  */
 describe('characterAnchor', () => {
-  it('places the popover below the character, never over it', () => {
-    const box = { offsetLeft: 20, offsetTop: 20, offsetHeight: 150 }
-    expect(characterAnchor(box).y).toBeGreaterThan(box.offsetTop + box.offsetHeight)
+  // The popover's real size, measured from its own parts: 272 wide (declared in
+  // useAgentPopover), and 35 header + 192 list-at-max + 35 approve/deny + 40 composer
+  // tall.
+  const POPOVER = { w: 272, h: 302 }
+  // Measured geometry, not invented: a pop-out world whose scene box is 773x514,
+  // holding 8 agents across two rows of 148px characters.
+  const SCENE = { width: 773, height: 514 }
+  const CHAR = { offsetWidth: 120, offsetHeight: 148 }
+  const ROW_1 = { offsetLeft: 20, offsetTop: 20, ...CHAR }
+  const ROW_2 = { offsetLeft: 20, offsetTop: 184, ...CHAR }
+  const RIGHTMOST = { offsetLeft: 564, offsetTop: 20, ...CHAR }
+  // Enough room below a first-row character for the whole popover.
+  const TALL_SCENE = { width: 773, height: 900 }
+
+  const overlaps = (
+    a: { x: number; y: number },
+    box: { offsetLeft: number; offsetTop: number; offsetWidth: number; offsetHeight: number },
+  ) => a.x < box.offsetLeft + box.offsetWidth && a.x + POPOVER.w > box.offsetLeft
+    && a.y < box.offsetTop + box.offsetHeight && a.y + POPOVER.h > box.offsetTop
+
+  it('places the popover below the character when there is room', () => {
+    expect(characterAnchor(ROW_1, TALL_SCENE).y)
+      .toBeGreaterThan(ROW_1.offsetTop + ROW_1.offsetHeight)
+  })
+
+  it('keeps the popover left-aligned with its character when it goes below', () => {
+    expect(characterAnchor(ROW_1, TALL_SCENE).x).toBe(ROW_1.offsetLeft)
   })
 
   it('never anchors above the scene, which would put it off-screen', () => {
-    // The top row sits at the container's padding, so a negative offset escapes it.
-    expect(characterAnchor({ offsetLeft: 20, offsetTop: 20, offsetHeight: 150 }).y)
-      .toBeGreaterThanOrEqual(0)
+    expect(characterAnchor(ROW_1, SCENE).y).toBeGreaterThanOrEqual(0)
   })
 
-  it('keeps the popover left-aligned with its character', () => {
-    expect(characterAnchor({ offsetLeft: 148, offsetTop: 20, offsetHeight: 150 }).x).toBe(148)
+  /**
+   * The scene is `overflow: hidden`, so a popover running past the bottom loses its
+   * approve/deny row and composer — the agent below the first row then cannot be
+   * approved, denied or messaged from the world at all.
+   */
+  it('keeps the whole popover inside the scene for a second-row character', () => {
+    const a = characterAnchor(ROW_2, SCENE)
+    expect(a.y + POPOVER.h).toBeLessThanOrEqual(SCENE.height)
+    expect(a.x + POPOVER.w).toBeLessThanOrEqual(SCENE.width)
+  })
+
+  it('keeps the whole popover inside the scene for the rightmost character', () => {
+    const a = characterAnchor(RIGHTMOST, TALL_SCENE)
+    expect(a.x + POPOVER.w).toBeLessThanOrEqual(TALL_SCENE.width)
+  })
+
+  /**
+   * The pair that a vertical-clamp-only fix cannot satisfy at once. Clamping a
+   * second-row popover up into the scene puts it back over the character that owns
+   * the toggle — measured in a real browser as `elementFromPoint` at the character's
+   * centre resolving to the popover instead of the character.
+   */
+  it('never covers the character it belongs to, in either placement', () => {
+    expect(overlaps(characterAnchor(ROW_1, TALL_SCENE), ROW_1)).toBe(false)
+    expect(overlaps(characterAnchor(ROW_2, SCENE), ROW_2)).toBe(false)
+    expect(overlaps(characterAnchor(RIGHTMOST, SCENE), RIGHTMOST)).toBe(false)
+  })
+
+  it('goes beside the character when it cannot fit below', () => {
+    const a = characterAnchor(ROW_2, SCENE)
+    expect(a.x).toBeGreaterThanOrEqual(ROW_2.offsetLeft + ROW_2.offsetWidth)
+  })
+
+  it('clamps rather than inverting when the scene is smaller than the popover', () => {
+    // A collapsed or very short container must still yield a usable in-bounds origin,
+    // not a negative one that pushes the popover off the top or the left.
+    const tiny = characterAnchor(ROW_1, { width: 120, height: 100 })
+    expect(tiny.x).toBeGreaterThanOrEqual(0)
+    expect(tiny.y).toBeGreaterThanOrEqual(0)
+  })
+
+  it('leaves an unmeasured container with an in-bounds origin', () => {
+    // jsdom, and the very first paint, both report 0x0.
+    const unmeasured = characterAnchor(ROW_1, { width: 0, height: 0 })
+    expect(unmeasured.x).toBeGreaterThanOrEqual(0)
+    expect(unmeasured.y).toBeGreaterThanOrEqual(0)
   })
 })
 

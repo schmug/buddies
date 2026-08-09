@@ -2995,6 +2995,26 @@
       "show_comments": "Show comments"
     },
     "scenes": {
+      "config": {
+        "crew_desc": "Your agents as their own characters",
+        "crew_label": "Crew",
+        "ghost_desc": "Kiro ghosts in hats, glasses, and capes",
+        "ghost_label": "Kiro Haunt",
+        "mission_desc": "NASA ops center",
+        "mission_label": "Mission Control",
+        "neural_desc": "Constellation map",
+        "neural_label": "Neural Net",
+        "office_desc": "Classic pixel office",
+        "office_label": "Office",
+        "panda_desc": "Bamboo forest workspace, all pandas",
+        "panda_label": "Panda Den",
+        "serengeti_desc": "Serengeti savanna with giraffes, warthogs, and elephants",
+        "serengeti_label": "Watering Hole",
+        "underwater_desc": "Underwater station",
+        "underwater_label": "Deep Lab",
+        "wizard_desc": "Alchemy lab",
+        "wizard_label": "Wizard Tower"
+      },
       "ghostScene": {
         "kiro_ghost_haunt_animation": "Kiro ghost haunt animation",
         "kiro_ghost_haunt_text_overlay": "Kiro ghost haunt text overlay",
@@ -3704,6 +3724,7 @@
     "systemPage": {},
     "worldsPage": {
       "hide_controls": "Hide controls",
+      "scene_picker": "{{label}} scene: {{desc}}",
       "show_controls": "Show controls"
     },
     "worldsPopout": {

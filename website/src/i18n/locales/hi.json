@@ -8939,6 +8939,26 @@
       "v": "v"
     },
     "scenes": {
+      "config": {
+        "crew_desc": "आपके एजेंट अपने ही किरदारों के रूप में",
+        "crew_label": "क्रू",
+        "ghost_desc": "टोपी, चश्मे और लबादे पहने Kiro भूत",
+        "ghost_label": "Kiro हॉन्ट",
+        "mission_desc": "NASA ऑप्स सेंटर",
+        "mission_label": "मिशन कंट्रोल",
+        "neural_desc": "तारामंडल मानचित्र",
+        "neural_label": "न्यूरल नेट",
+        "office_desc": "क्लासिक पिक्सेल ऑफिस",
+        "office_label": "ऑफिस",
+        "panda_desc": "बाँस के जंगल का कार्यस्थल, सभी पांडा",
+        "panda_label": "पांडा मांद",
+        "serengeti_desc": "सेरेनगेटी सवाना, जिराफ, वॉर्थोग और हाथियों के साथ",
+        "serengeti_label": "जलस्रोत",
+        "underwater_desc": "पानी के नीचे का स्टेशन",
+        "underwater_label": "गहरी प्रयोगशाला",
+        "wizard_desc": "कीमिया प्रयोगशाला",
+        "wizard_label": "जादूगर मीनार"
+      },
       "ghostScene": {
         "friendly_hauntings_only": "केवल दोस्ताना भूत",
         "kiro_ghost_haunt_animation": "Kiro भूत एनिमेशन",
@@ -10769,6 +10789,7 @@
       "playing_in_popout_window": "पॉपआउट विंडो में चल रहा है",
       "pop_out_to_separate_window": "अलग विंडो में पॉप आउट करें",
       "present": "मौजूद,",
+      "scene_picker": "{{label}} दृश्य: {{desc}}",
       "show_controls": "नियंत्रण दिखाएँ",
       "slot_one": "{{count}} स्लॉट",
       "slot_other": "{{count}} स्लॉट"

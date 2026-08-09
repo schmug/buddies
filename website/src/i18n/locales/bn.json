@@ -8939,6 +8939,26 @@
       "v": "v"
     },
     "scenes": {
+      "config": {
+        "crew_desc": "আপনার এজেন্টরা নিজেদের চরিত্র হয়ে",
+        "crew_label": "ক্রু",
+        "ghost_desc": "টুপি, চশমা আর জোব্বা পরা Kiro ভূত",
+        "ghost_label": "Kiro ভূতুড়ে",
+        "mission_desc": "NASA অপারেশনস সেন্টার",
+        "mission_label": "মিশন কন্ট্রোল",
+        "neural_desc": "নক্ষত্রমণ্ডলের মানচিত্র",
+        "neural_label": "নিউরাল নেট",
+        "office_desc": "ক্লাসিক পিক্সেল অফিস",
+        "office_label": "অফিস",
+        "panda_desc": "বাঁশ বনের কর্মক্ষেত্র, সবই পান্ডা",
+        "panda_label": "পান্ডা গুহা",
+        "serengeti_desc": "সেরেঙ্গেটি সাভানা, জিরাফ, ওয়ার্টহগ আর হাতি সহ",
+        "serengeti_label": "জলাশয়",
+        "underwater_desc": "পানির নিচের স্টেশন",
+        "underwater_label": "গভীর গবেষণাগার",
+        "wizard_desc": "রসায়নাগার",
+        "wizard_label": "জাদুকরের টাওয়ার"
+      },
       "ghostScene": {
         "friendly_hauntings_only": "শুধু বন্ধুত্বপূর্ণ ভূতুড়েপনা",
         "kiro_ghost_haunt_animation": "Kiro ভূতের ভুতুড়ে অ্যানিমেশন",
@@ -10769,6 +10789,7 @@
       "playing_in_popout_window": "পপআউট উইন্ডোতে চলছে",
       "pop_out_to_separate_window": "আলাদা উইন্ডোতে পপ আউট করুন",
       "present": "উপস্থিত,",
+      "scene_picker": "{{label}} দৃশ্য: {{desc}}",
       "show_controls": "কন্ট্রোল দেখাও",
       "slot_one": "{{count}}টি slot",
       "slot_other": "{{count}}টি slot"

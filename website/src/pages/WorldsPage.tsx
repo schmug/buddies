@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { Sparkles, PictureInPicture2 } from 'lucide-react'
 import { useAgentSync } from '../hooks/useAgentSync'
 import { usePopoutSync } from '../hooks/usePopoutSync'
-import { SCENES, SCENE_STORAGE_KEY, SCENE_LAYOUT_SCALE, type SceneKey } from './scenes/config'
+import { SCENES, SCENE_LABEL_KEY, SCENE_DESC_KEY, SCENE_STORAGE_KEY, SCENE_LAYOUT_SCALE, type SceneKey } from './scenes/config'
 import { SCENE_COMPONENTS } from './scenes/components'
 
 import { i18nT } from '../i18n/t'
@@ -57,9 +57,12 @@ export default function WorldsPage() {
             <button
               key={s.key}
               onClick={() => changeScene(s.key)}
-              title={s.desc}
+              title={i18nT(SCENE_DESC_KEY[s.key])}
               aria-pressed={scene === s.key}
-              aria-label={`${s.label} scene: ${s.desc}`}
+              aria-label={i18nT('pages.worldsPage.scene_picker', {
+                label: i18nT(SCENE_LABEL_KEY[s.key]),
+                desc: i18nT(SCENE_DESC_KEY[s.key]),
+              })}
               style={{
                 padding: '5px 12px',
                 borderRadius: 6,
@@ -76,7 +79,7 @@ export default function WorldsPage() {
               }}
             >
               <span>{s.icon}</span>
-              <span>{s.label}</span>
+              <span>{i18nT(SCENE_LABEL_KEY[s.key])}</span>
             </button>
           ))}
         </div>

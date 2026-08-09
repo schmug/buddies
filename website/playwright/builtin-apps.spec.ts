@@ -56,9 +56,20 @@ test.describe('Builtin App Route resolution', () => {
     const scene = page.getByTestId('crew-scene')
     await expect(scene).toBeVisible({ timeout: 10000 })
     await expect(scene).toHaveAttribute('data-scene-paused', 'false')
-    // The minimal fixture has no chat slots, so the empty state is the assertion
-    // that survives an empty backend.
-    await expect(scene.getByText('No agents right now')).toBeVisible({ timeout: 10000 })
+    await expect(crewTab).toHaveAttribute('aria-pressed', 'true')
+    // No pixels: every other scene paints into a <canvas>, and this one must not.
+    await expect(scene.locator('canvas')).toHaveCount(0)
+    /*
+     * Slot count is NOT a fixture this spec controls. One gateway serves the whole
+     * run on a single KIROCREW_HOME with no per-file reset, workers is 1, and
+     * `active-slot-persistence.spec.ts` sorts earlier and seeds chat slots additively
+     * — so by the time this runs the crew may hold characters or be empty. Assert the
+     * disjunction, which is true either way and still fails on a scene that rendered
+     * nothing at all.
+     */
+    const characters = scene.getByRole('button', { name: /^Open / })
+    const emptyState = scene.getByText('No agents right now')
+    await expect(characters.first().or(emptyState)).toBeVisible({ timeout: 10000 })
   })
 
   // ── /channels — ChannelPage ───────────────────────────────────────────────

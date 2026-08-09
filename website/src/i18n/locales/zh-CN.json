@@ -8828,6 +8828,26 @@
       "v": "v"
     },
     "scenes": {
+      "config": {
+        "crew_desc": "你的代理化身为自己的角色",
+        "crew_label": "船员",
+        "ghost_desc": "戴帽子、眼镜和披风的 Kiro 幽灵",
+        "ghost_label": "Kiro 鬼屋",
+        "mission_desc": "NASA 指挥中心",
+        "mission_label": "任务控制中心",
+        "neural_desc": "星座图",
+        "neural_label": "神经网络",
+        "office_desc": "经典像素办公室",
+        "office_label": "办公室",
+        "panda_desc": "竹林工作区，全是熊猫",
+        "panda_label": "熊猫小屋",
+        "serengeti_desc": "塞伦盖蒂草原，有长颈鹿、疣猪和大象",
+        "serengeti_label": "水源地",
+        "underwater_desc": "水下研究站",
+        "underwater_label": "深海实验室",
+        "wizard_desc": "炼金实验室",
+        "wizard_label": "巫师塔"
+      },
       "ghostScene": {
         "friendly_hauntings_only": "仅限友好出没",
         "kiro_ghost_haunt_animation": "Kiro 幽灵出没动画",
@@ -10648,6 +10668,7 @@
       "playing_in_popout_window": "正在弹出窗口中播放",
       "pop_out_to_separate_window": "弹出到独立窗口",
       "present": "个在场，",
+      "scene_picker": "{{label}} 场景：{{desc}}",
       "show_controls": "展开控制项",
       "slot_other": "{{count}} 个槽位"
     },

@@ -25,6 +25,7 @@ import { FILTER_LABEL_KEY, FILTER_DESCRIPTION_KEY, SORT_LABEL_KEY } from '../pag
 import { STAT_LABEL_KEY } from '../pages/OverviewPage'
 import { NEW_MENU_LABEL_KEY, NEW_MENU_DESC_KEY } from '../pages/chat/SidePanel'
 import { STATE_LABEL_KEY } from '../apps/auto-research/ResearchLabPage'
+import { SCENE_LABEL_KEY, SCENE_DESC_KEY } from '../pages/scenes/config'
 
 function flatten(obj: unknown, prefix = ''): Record<string, string> {
   const out: Record<string, string> = {}
@@ -49,6 +50,8 @@ const TABLES: Record<string, Record<string, string>> = {
   NEW_MENU_LABEL_KEY,
   NEW_MENU_DESC_KEY,
   STATE_LABEL_KEY,
+  SCENE_LABEL_KEY,
+  SCENE_DESC_KEY,
 }
 
 describe('user-visible label tables hold catalog keys', () => {
