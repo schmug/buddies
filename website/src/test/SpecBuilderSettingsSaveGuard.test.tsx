@@ -1,7 +1,8 @@
 // SettingsModal must not let a failed or pending settings read overwrite the
-// stored path. basePath is seeded from the query, so before the read lands the
-// buffer is still the initial '' -- and Save used to be guarded only by the SAVE
-// mutation being in flight, leaving that window open.
+// stored path. basePath falls back to the query, so before the read lands it is
+// still '' -- guarding Save on the SAVE mutation being in flight alone leaves
+// that window open.
+import { useLayoutEffect } from 'react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -55,5 +56,41 @@ describe('SettingsModal save guard', () => {
 
     await waitFor(() => expect(saveButton()).toBeEnabled())
     expect(screen.getByDisplayValue('/srv/specs')).toBeInTheDocument()
+  })
+
+  it('enables Save and shows the stored path in the SAME commit', () => {
+    // The two have to land together, not one commit apart. A buffer seeded by a
+    // passive effect trails the read by a commit: the commit that delivers the
+    // data un-disables Save while the field is still '', so a click inside that
+    // window writes '' over the configured path -- the overwrite the guard above
+    // exists to prevent. It is also what makes the assertion above order-
+    // dependent, since whether the seeding commit beats testing-library's drain
+    // turn is up to the event loop. A layout effect reads the first commit,
+    // ahead of any passive effect that would paper over the gap.
+    vi.spyOn(specApi, 'getSettings').mockResolvedValue({ base_path: '/srv/specs' })
+    // Seeded cache: the real path in, e.g., reopening the modal after a save.
+    // staleTime keeps the read from refetching, so the FIRST commit is the only
+    // one under test.
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    })
+    qc.setQueryData(['spec-builder', 'settings'], { base_path: '/srv/specs' })
+
+    let firstCommit: { value: string; saveEnabled: boolean } | undefined
+    function CommitProbe() {
+      useLayoutEffect(() => {
+        const field = document.getElementById('sb-base-path') as HTMLInputElement
+        firstCommit = { value: field.value, saveEnabled: !(saveButton() as HTMLButtonElement).disabled }
+      }, [])
+      return null
+    }
+    render(
+      <QueryClientProvider client={qc}>
+        <SettingsModal onClose={() => {}} setErr={vi.fn()} />
+        <CommitProbe />
+      </QueryClientProvider>,
+    )
+
+    expect(firstCommit).toEqual({ value: '/srv/specs', saveEnabled: true })
   })
 })

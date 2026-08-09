@@ -3,10 +3,10 @@
  * verifies loading state, fleet table, and empty state.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { screen, waitFor, fireEvent, within } from '@testing-library/react'
+import { act, render, screen, waitFor, fireEvent, within } from '@testing-library/react'
 import { renderWithProviders } from './helpers'
 
-import DevFleetPage, { mergeLogWindow, LOG_GAP_MARKER, pruneVerdictLabel, gatewayRecovered } from '../pages/DevFleetPage'
+import DevFleetPage, { mergeLogWindow, LOG_GAP_MARKER, pruneVerdictLabel, gatewayRecovered, ToastHost, notify } from '../pages/DevFleetPage'
 
 function renderPage() {
   return renderWithProviders(<DevFleetPage />, { route: '/dev-fleet' })
@@ -1128,6 +1128,29 @@ describe('gatewayRecovered', () => {
     expect(gatewayRecovered('100', null)).toBe(false)
     expect(gatewayRecovered('100', undefined)).toBe(false)
     expect(gatewayRecovered(undefined, undefined)).toBe(false)
+  })
+})
+
+describe('ToastHost', () => {
+  it('cancels the auto-dismiss timer it armed when it unmounts', () => {
+    // A toast arms a multi-second timer whose callback is a setState. The mount
+    // that armed it is the only thing that can still use it, so unmount has to
+    // cancel it: a timer left armed fires into a tree that is gone, and once the
+    // surrounding DOM environment has been torn down too the callback cannot
+    // reach `window` at all — which surfaces as an unhandled error rather than a
+    // failing test.
+    vi.useFakeTimers()
+    try {
+      const { unmount } = render(<ToastHost />)
+      act(() => { notify('pod up', { type: 'success' }) })
+      expect(screen.getByText('pod up')).toBeInTheDocument()
+      expect(vi.getTimerCount()).toBe(1)
+
+      unmount()
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 
