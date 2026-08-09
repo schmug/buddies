@@ -42,10 +42,13 @@ const DEFAULT_PACK = 'kiro-ghost'
  */
 export type PetState =
   | 'idle' | 'loading' | 'done' | 'error'
+  // Work is blocked on the user — an approval to grant, a question to answer.
+  // Distinct from `loading`: nothing is progressing until the human acts.
+  | 'needs-input'
   // Guided-breathing phases. Optional in a pack; each falls back to idle.
   | 'inhale' | 'hold' | 'exhale'
 
-type PackSlot = 'idle' | 'loading' | 'done' | 'inhale' | 'hold' | 'exhale'
+type PackSlot = 'idle' | 'loading' | 'done' | 'needsInput' | 'inhale' | 'hold' | 'exhale'
 
 const STATE_TO_SLOT: Record<PetState, PackSlot> = {
   idle: 'idle',
@@ -54,13 +57,31 @@ const STATE_TO_SLOT: Record<PetState, PackSlot> = {
   // Packs are not required to ship error art; the resolver falls back to idle
   // and the shake carries the meaning.
   error: 'idle',
+  // Optional like every other slot: a pack that draws no `needsInput` frame falls
+  // through the resolver to its idle body and lets the bubble carry the message.
+  'needs-input': 'needsInput',
   inhale: 'inhale',
   hold: 'hold',
   exhale: 'exhale',
 }
 
-/** Slots whose only sensible fallback is idle — never the busy aliases. */
-const BREATHING_SLOTS = new Set<PackSlot>(['inhale', 'hold', 'exhale'])
+/**
+ * Slots whose only sensible fallback is idle — never the busy aliases.
+ *
+ * The breathing phases are here because a pack with no `inhale` should show its calm
+ * body, not the art it drew for "working".
+ *
+ * `needsInput` is here for a sharper reason. The ordinary chain ends in the legacy
+ * busy aliases, which is tolerable for `done` because that state is TRANSIENT — a
+ * wrong frame shows for the length of a hop. Blocked-on-you is held until a human
+ * acts, so a wrong frame shows for minutes, and the wrong frame is the worst one
+ * available: imported packs routinely carry `thinking` art (which is why it is in
+ * LEGACY_STATES), so the busy chain would render a working body at exactly the moment
+ * the user has to be told that nothing is progressing. They read "still working",
+ * never approve, and the agent stalls — the failure this signal exists to prevent.
+ * Idle-vs-busy is a real visual distinction; busy-vs-busy is none.
+ */
+const IDLE_ONLY_FALLBACK_SLOTS = new Set<PackSlot>(['needsInput', 'inhale', 'hold', 'exhale'])
 
 /**
  * The motion a bare state implies, for surfaces that just hand us a state (the
@@ -72,6 +93,11 @@ const STATE_TO_ANIM: Record<PetState, PetAnim> = {
   loading: 'ponder-loop',
   done: 'celebrate',
   error: 'error',
+  // The head-cock, not the ponder loop: blocked-on-you is a request for attention,
+  // and the looping ponder would read as "still working" — the one thing it is not.
+  // It is also the motion a `curious` mood already selects, so a caller that sets
+  // both gets one coherent reaction rather than two competing ones.
+  'needs-input': 'curious',
   // No keyframe of our own during breathing: the overlay drives the scale, and a
   // second animation would fight the phase timing it is trying to express.
   inhale: null,
@@ -230,8 +256,8 @@ export const PetAvatar: React.FC<PetAvatarProps> = ({
       // and `working` mean the same thing as `loading` for packs authored before
       // the status/random split.
       //
-      // Breathing phases skip the busy aliases: a pack with no `inhale` should show
-      // its calm idle body, not the art it drew for "working".
+      // IDLE_ONLY_FALLBACK_SLOTS skip the busy aliases and go straight to idle —
+      // see the rationale on that constant.
       const a = detail.animations
       /*
        * A requested clip outranks the state slot — it IS the reason we are
@@ -240,7 +266,7 @@ export const PetAvatar: React.FC<PetAvatarProps> = ({
        */
       const entry = clipName
         ? (a[clipName] || a.idle)
-        : BREATHING_SLOTS.has(slot)
+        : IDLE_ONLY_FALLBACK_SLOTS.has(slot)
           ? (a[slot] || a.idle)
           : (a[slot] || a.loading || a.thinking || a.working || a.idle)
       if (!entry) return
