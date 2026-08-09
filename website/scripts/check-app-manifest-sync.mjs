@@ -6,7 +6,7 @@
  * localises app metadata WITHOUT touching `app.json`, so the English now lives in two
  * places on purpose: the manifest, which is what `kirocrew app list` and every other
  * catalog-less consumer prints, and `locales/en.json`, which is what the SPA renders
- * and what the nine translated catalogs were derived from.
+ * and what every translated catalog was derived from.
  *
  * Two copies is a drift machine unless something pins them together. Edit a
  * `description` in `app.json` and, with no check, three things happen silently: the CLI
@@ -31,13 +31,21 @@
  *     script cannot read a TS module without either a regex (unsound — it matches
  *     commented-out source) or a compile step. `src/test/appManifest.test.ts` imports
  *     the module through vitest and asserts it there.
- *   - That the nine translated catalogs differ from English. `catalogParity.test.ts`
+ *   - That the translated catalogs differ from English. `catalogParity.test.ts`
  *     already requires every key in all of them, and a translator legitimately leaves a
  *     proper noun ("Papyrus") identical.
+ *   - That a translation still translates the CURRENT English. Nothing does, which is
+ *     why the remediation below NAMES every catalog rather than counting them. This
+ *     message is the only thing between a changed sentence and a stale translation, and
+ *     a count in it is wrong the next time a language ships — name too few and the
+ *     author updates too few, with no gate left to report the difference. The set comes
+ *     from `AUTHORED_CATALOGS` via `lib/i18n-catalogs.mjs`, so it cannot drift.
  */
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { retranslationHint } from './lib/i18n-catalogs.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const WEB = join(HERE, '..')
@@ -112,6 +120,11 @@ const lookup = (cat, key) => key.split('.').reduce((o, p) => (o == null ? undefi
 const apps = manifests()
 const en = JSON.parse(readFileSync(EN, 'utf8'))
 
+// Read the catalog registry ONCE, before any check runs. `retranslationHint()` throws
+// rather than degrade to a count, and this gate must fail on that at startup — not
+// half-way through a report, where a reader could mistake a truncated run for a pass.
+const RETRANSLATE = retranslationHint().map(line => `      ${line}`).join('\n')
+
 // Every built-in's expected keys must exist in en.json and hold the manifest's own
 // words. Coverage of `APP_MANIFEST_KEY` itself is `src/test/appManifest.test.ts`.
 for (const [name, app] of apps) {
@@ -125,8 +138,8 @@ for (const [name, app] of apps) {
       fail.push(`${name}.${what} drifted from ${app.dir}/app.json\n`
         + `      manifest: ${JSON.stringify(expected)}\n`
         + `      en.json : ${JSON.stringify(actual)}\n`
-        + '      Update the catalog value (and re-translate the nine others), or revert '
-        + 'the manifest.')
+        + `      Revert ${app.dir}/app.json, or update the en.json value.\n`
+        + RETRANSLATE)
     }
   }
   check(keys.displayName, app.displayName, 'displayName')

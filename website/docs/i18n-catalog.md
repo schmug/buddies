@@ -53,7 +53,7 @@ Adding a language is a **data change**: three edits, no component or test change
 
 1. `locales/<tag>.json`, with the same key set as `en.json` plus `en.manual.json`.
 2. One entry in `SUPPORTED_LANGUAGES` (`src/i18n/languages.ts`).
-3. One line in `CATALOGS` (`src/i18n/index.ts`).
+3. One line in `AUTHORED_CATALOGS` (`src/i18n/index.ts`), which `CATALOGS` wraps.
 
 The parity tests generate their cases from `SUPPORTED_LANGUAGES` and read catalogs
 from the runtime `CATALOGS` map, so a new language automatically gets its
@@ -61,6 +61,15 @@ key-parity, placeholder-preservation, and no-empty-value coverage. Miss one of t
 three edits and CI fails naming the gap; it cannot silently ship as English. There
 is **no allowlist**, so every language lands in the same commit. That is what makes
 each new language add marginal cost to every subsequent i18n change.
+
+It stays three edits because nothing else states the set. A gate that has to tell an
+author which catalogs a changed English value invalidates reads the codes out of
+`AUTHORED_CATALOGS` through `scripts/lib/i18n-catalogs.mjs`, and
+`src/test/i18nCatalogRegistry.test.ts` pins that parse against the real constant.
+**Never write the catalog count into a message, a comment, or this doc** — nothing
+reports the catalogs a stale count leaves behind, because `[manifest-sync]` reads
+only `en.json` and `catalogParity` proves a key is present, not that its value still
+translates the current English.
 
 Three code lists answer three different questions, and conflating them is a real
 bug (registering the pseudolocale made `en` ambiguous, so `en-GB` stopped
@@ -165,7 +174,8 @@ prose, byte for byte.
    (`display_name`, `description`, `page_label`, `highlight_1..N`) with values
    **identical** to the manifest.
 3. Add the entry to `APP_MANIFEST_KEY`, one `highlights` key per bullet.
-4. Translate into the other eleven catalogs — `catalogParity.test.ts` is all-or-nothing.
+4. Translate into every other catalog — `catalogParity.test.ts` is all-or-nothing, and
+   a `[manifest-sync]` failure names the exact set.
 5. Run `npm run i18n:check`.
 
 Two traps worth knowing before you debug them:
