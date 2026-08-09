@@ -848,6 +848,12 @@
         "through_mouth": "par la bouche",
         "through_nose": "par le nez"
       },
+      "cast": {
+        "more_agents_many": "{{count}} agents de plus en cours",
+        "more_agents_one": "{{count}} agent de plus en cours",
+        "more_agents_other": "{{count}} agents de plus en cours",
+        "open_in_worlds": "Ouvrir {{name}} dans Mondes d'agents"
+      },
       "color": {
         "belly": "Ventre",
         "bodyFur": "Corps / Fourrure",

@@ -1,10 +1,14 @@
 /**
- * useMouseForward — reports the companion's and bubble's hitboxes to the main
- * process, which polls the cursor at ~60fps and toggles ignore-mouse itself.
+ * useMouseForward — reports the companion's, bubble's and cast's hitboxes to the
+ * main process, which polls the cursor at ~60fps and toggles ignore-mouse itself.
  *
- * The reported set also has room for a list of cast-sprite rects. This hook sends
- * only the two, so its reports carry an empty cast; whatever teaches it about the
- * cast must send them on every report, because one that omits them clears them.
+ * **This is the SINGLE reporting path, and that is load-bearing.** An omitted cast
+ * is read as an empty cast by the preload and by the main process alike — nothing
+ * preserves the previous rects, deliberately, because stale rects pin regions of the
+ * user's desktop unclickable, which is worse than a sprite that does not respond. So
+ * a second reporter that sent only the companion and bubble would silently make every
+ * sprite click-through. Every send below therefore carries the whole set, including
+ * the two re-assert paths.
  *
  * Ported from the desktop app's `src/renderer/hooks/useMouseForward.ts`. The
  * header there says it plainly: sending the hitbox rects and letting the main
@@ -32,7 +36,7 @@ import { useEffect, useRef, useState, type MutableRefObject } from 'react'
 
 import type { Rect } from './bubbleLayout'
 import { petBridge } from './petBridge'
-import { petHitbox, bubbleHitbox } from './hitbox'
+import { petHitbox, bubbleHitbox, type HitRect } from './hitbox'
 
 export interface UseMouseForwardParams {
   /** The companion's current overlay-local position. */
@@ -41,12 +45,28 @@ export interface UseMouseForwardParams {
   bubbleRect: Rect | null
   /** useDrag's dragging flag — a ref, so no re-render when it flips. */
   dragging: MutableRefObject<boolean>
+  /**
+   * One rect per cast sprite, empty when no agent is working.
+   *
+   * Required rather than optional: an absent cast and an empty cast are the same
+   * thing downstream, so making it optional would let a call site drop the sprites
+   * without saying so.
+   */
+  cast: HitRect[]
 }
 
-export function useMouseForward({ pos, bubbleRect, dragging }: UseMouseForwardParams): void {
+export function useMouseForward({
+  pos, bubbleRect, dragging, cast,
+}: UseMouseForwardParams): void {
   // Last rects sent, so an unchanged frame does not flood IPC.
   const lastPet = useRef('')
   const lastBubble = useRef('')
+  const lastCast = useRef('')
+
+  // Read by the mouseup listener, which must send the CURRENT cast without
+  // re-subscribing on every sprite move.
+  const castRef = useRef(cast)
+  castRef.current = cast
 
   // Forces a re-send while a bubble is visible, guarding against a hitbox the
   // main process may have dropped across a sleep/wake.
@@ -57,11 +77,17 @@ export function useMouseForward({ pos, bubbleRect, dragging }: UseMouseForwardPa
     const bubble = bubbleHitbox(bubbleRect)
     const petKey = `${pet.x},${pet.y},${tick}`
     const bubbleKey = bubble ? `${bubble.x},${bubble.y},${bubble.w},${bubble.h}` : ''
-    if (petKey === lastPet.current && bubbleKey === lastBubble.current) return
+    const castKey = JSON.stringify(cast)
+    if (
+      petKey === lastPet.current &&
+      bubbleKey === lastBubble.current &&
+      castKey === lastCast.current
+    ) return
     lastPet.current = petKey
     lastBubble.current = bubbleKey
-    petBridge.updateHitbox?.(pet, bubble)
-  }, [pos, bubbleRect, tick])
+    lastCast.current = castKey
+    petBridge.updateHitbox?.(pet, bubble, cast)
+  }, [pos, bubbleRect, tick, cast])
 
   // Re-assert the hitbox every couple of seconds while a bubble is up.
   useEffect(() => {
@@ -79,7 +105,8 @@ export function useMouseForward({ pos, bubbleRect, dragging }: UseMouseForwardPa
         if (dragging.current) return
         lastPet.current = ''
         lastBubble.current = ''
-        petBridge.updateHitbox?.(petHitbox(pos), bubbleHitbox(bubbleRect))
+        lastCast.current = ''
+        petBridge.updateHitbox?.(petHitbox(pos), bubbleHitbox(bubbleRect), castRef.current)
       })
     }
     window.addEventListener('mouseup', onUp)
