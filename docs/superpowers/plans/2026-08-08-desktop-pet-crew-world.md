@@ -55,7 +55,7 @@ The other two are open, and Task 7 cannot start until they are answered.
 Read these, in order, looking for any per-display gating:
 
 ```bash
-cd /Users/cory/KiroCrew/.claude/worktrees/agent-worlds-overview-d3c573
+cd "$(git rev-parse --show-toplevel)"
 grep -n "screen\|display\|getAllDisplays\|primary" website/electron/crew-companion/petOverlay.js
 grep -n "petX\|petY\|savePosition\|loadPosition" website/src/apps/crew-companion/petBridge.ts
 grep -n "innerWidth\|innerHeight\|pos\b" website/src/apps/crew-companion/pet.tsx | head -40
