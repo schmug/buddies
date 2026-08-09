@@ -114,16 +114,15 @@ export function activeAnimFor({ state, mood, docked = false, walking = false, id
    * are events and this is a resting condition, and above `loading` because a turn
    * blocked on a human outranks one that is merely busy.
    *
-   * DORMANT until the companion's aggregate maps `needs-input` to its own pack slot:
-   * `CrewCast.AGGREGATE_TO_PET` routes it to `loading`, so the state reaching here is
-   * `loading` and the companion ponder-loops exactly as it does for a merely-busy
-   * crew. `AnimInputs.state` is a `string`, so nothing type-checks that gap shut —
-   * the branch is pre-staged so the repoint stays a one-line data change.
+   * `AnimInputs.state` is a `string`, not a `PetState`, so nothing type-checks that
+   * this branch is reachable: it depends entirely on `CrewCast.AGGREGATE_TO_PET`
+   * routing `needs-input` to its own pack slot rather than aliasing it onto
+   * `loading`. A test pins the reachability for that reason.
    *
    * `kg-curious` is a 2000ms one-shot that ends back at neutral, and this is the only
-   * state that persists until a person acts — so once it IS reachable, a caller that
-   * holds it must replay the keyframes (bump `animEpoch`) or the companion goes still
-   * for the one condition that exists to be noticed.
+   * state that persists until a person acts — so a caller that holds it must replay
+   * the keyframes (bump `animEpoch`, see pet.tsx's `ATTENTION_REPLAY_MS`) or the
+   * companion goes still for the one condition that exists to be noticed.
    */
   if (state === 'needs-input' && !docked) return 'curious'
   if (state === 'loading' && !docked) return 'ponder-loop'

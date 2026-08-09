@@ -31,25 +31,26 @@ export interface CastAppearance {
 /**
  * What a cast member looks like.
  *
- * `PetState` has no slot for "waiting on you", so both cast states wear the busy
- * pose and the MOOD carries the difference: a turn blocked on the user's approval
- * has not stopped running, and `curious` is the face the companion already uses for
- * an approval bubble (see pet.tsx's `onApproval`) — waiting on you is a question,
- * not a failure, so it must not borrow the error shake.
+ * A turn blocked on the user wears the `needs-input` pose, and keeps the `curious`
+ * mood alongside it: `curious` is the face the companion already uses for an approval
+ * bubble (see pet.tsx's `onApproval`), and it selects the SAME head-cock that
+ * `PetAvatar.STATE_TO_ANIM` gives `needs-input`, so the mood and the state cannot
+ * fight over one body. Waiting on you is a question, not a failure, so it must not
+ * borrow the error shake.
  *
  * Only `running` and `needs-input` can reach the cast (`isCastEligible`); anything
  * else falls back to the resting pose rather than throwing at a caller that has
  * already decided to draw something.
  */
 export function castAppearance(state: AgentState): CastAppearance {
-  if (state === 'needs-input') return { state: 'loading', mood: 'curious' }
+  if (state === 'needs-input') return { state: 'needs-input', mood: 'curious' }
   if (state === 'running') return { state: 'loading' }
   return { state: 'idle' }
 }
 
 /** The companion's resting pose for each aggregate crew state. */
 const AGGREGATE_TO_PET: Record<AgentState, PetState> = {
-  'needs-input': 'loading',
+  'needs-input': 'needs-input',
   blocked: 'error',
   ready: 'done',
   running: 'loading',
@@ -70,8 +71,13 @@ export function restingPetState(aggregate: AgentState, reaction: PetState): PetS
 }
 
 /**
- * Aggregate states whose companion motion LOOPS, so it may be driven by simply being
- * in that state.
+ * Aggregate states whose companion motion is HELD, so it may be driven by simply
+ * being in that state.
+ *
+ * `running` and `idle` hold because their motion loops. `needs-input` is the
+ * exception: `kg-curious` is a 2000ms one-shot, so being in the state is not enough
+ * on its own — `pet.tsx` replays it on `ATTENTION_REPLAY_MS`, which is what keeps the
+ * one condition that waits on a human from going still.
  *
  * Everything else resolves to a one-shot keyframe — `kg-celebrate` (900ms) and
  * `kg-error` (800ms). Both end back at neutral and neither is in `POSED_ANIMS`, so
