@@ -16,6 +16,7 @@ import reducer, {
   sseSubagentStatus,
   sseSubagentText,
 } from '../store/dashboardSlice'
+import { sseChatMessage } from '../store/chatSlice'
 import type { StatusData, ChatSlot } from '../types'
 
 vi.mock('../api/client', () => ({
@@ -262,6 +263,65 @@ describe('dashboardSlice', () => {
       let state = reducer(initial, sseSubagentStatus({ slot: 'chat-1', running: 1 }))
       state = reducer(state, sseSubagentText({ slot: 'chat-1', id: 'sub-1', text: 'hello' }))
       expect(state.subagentText['chat-1']['sub-1']).toBe('hello')
+    })
+  })
+
+  describe('failedSlots', () => {
+    // ChatSlot carries no failure field, so a broken turn is observable only as
+    // a chat_message with role 'error'. dashboardSlice listens to chatSlice's
+    // action directly, which is why these dispatch a foreign slice's creator.
+    const errorFrame = (slot: string) => sseChatMessage({ slot, role: 'error', content: 'boom' })
+    const prototypePolluted = () => ({} as Record<string, unknown>).polluted
+
+    it('records a slot whose turn emitted an error', () => {
+      const state = reducer(initial, errorFrame('chat-1'))
+      expect(state.failedSlots['chat-1']).toBe(true)
+    })
+
+    it('ignores non-error roles', () => {
+      const frame = sseChatMessage({ slot: 'chat-1', role: 'assistant', content: 'fine' })
+      expect(reducer(initial, frame).failedSlots['chat-1']).toBeUndefined()
+    })
+
+    it('clears the flag when that slot starts running again', () => {
+      const failed = reducer(initial, errorFrame('chat-1'))
+      // Pin the precondition: without it this test still passes when the
+      // error frame is never recorded, so it could not tell "set then
+      // cleared" apart from "never set".
+      expect(failed.failedSlots['chat-1']).toBe(true)
+      const state = reducer(failed, sseSlots([{ ...slot1, running: true }]))
+      expect(state.failedSlots['chat-1']).toBeUndefined()
+    })
+
+    it('keeps the flag while the slot stays idle', () => {
+      const failed = reducer(initial, errorFrame('chat-1'))
+      expect(reducer(failed, sseSlots([slot1])).failedSlots['chat-1']).toBe(true)
+    })
+
+    it.each(['__proto__', 'constructor', 'prototype'])(
+      'ignores an error frame keyed %s and does not pollute the prototype',
+      key => {
+        const state = reducer(initial, errorFrame(key))
+        // `state.failedSlots[key]` reads truthily through the prototype chain
+        // for these names, so assert on OWN properties instead.
+        expect(Object.prototype.hasOwnProperty.call(state.failedSlots, key)).toBe(false)
+        expect(prototypePolluted()).toBeUndefined()
+      },
+    )
+
+    it('removeSlotOptimistic drops the deleted slot', () => {
+      // Slot keys derived from a Slack channel or a display name are stable, so
+      // a delete/recreate cycle would otherwise inherit a stale failure.
+      let state = reducer(initial, errorFrame('chat-1'))
+      state = reducer(state, removeSlotOptimistic('chat-1'))
+      expect(state.failedSlots['chat-1']).toBeUndefined()
+    })
+
+    it('fetchSlots.fulfilled reconciles failedSlots against live slots', () => {
+      let state = reducer(initial, errorFrame('chat-1'))
+      state = reducer(state, errorFrame('chat-2'))
+      state = reducer(state, fetchSlots.fulfilled([slot2], 'requestId'))
+      expect(state.failedSlots).toEqual({ 'chat-2': true })
     })
   })
 })
