@@ -83,8 +83,13 @@ Focus is granted only while the panel is open. The overlay is non-focusable so i
 takes focus from the user's real work, but a non-focusable window receives no keystrokes
 at all and the panel has a text input. The narrowing lives in `pet.tsx`: it grants focus
 as it opens the panel and withdraws it on BOTH close paths — its own `closePanel`, and the
-`onPanelClosed` notification, which is what covers the panel window being dismissed by
-click-away, Escape or its own ✕ without the companion being told. `index.js` owns only the
+`onPanelClosed` notification. The second exists because the panel is its OWN window: its ✕
+and its Escape handler call `panelClose()` from inside that window, so without a
+notification back the overlay would never learn the panel is gone and would stay
+focusable — a full-display always-on-top window that can take focus and swallow clicks
+meant for other apps. The panel does NOT close on click-away, deliberately: dismissing it
+is always an explicit act, because treating it as a popover threw away a running breathing
+exercise or a half-read settings screen on a stray click. `index.js` owns only the
 `crew-companion:focusable` IPC handler, where it calls `win.focus()` explicitly, because
 `setFocusable` alone does not move focus — without it the panel opens focusable but
 unfocused and the first keystroke goes to the previous app.
@@ -94,7 +99,7 @@ unfocused and the first keystroke goes to the previous app.
 The overlay covers whole displays, so every region it declares interactive is a hole
 punched in the user's desktop. An ABSENT cast therefore reads as an EMPTY cast, never as
 "keep what you had", and four layers hold that line. Three normalize it at runtime; the
-fourth, `petBridge.ts`, is the strongest of them, because it makes an absent cast
+remaining one, `petBridge.ts`, is the strongest of them, because it makes an absent cast
 unrepresentable at compile time rather than correcting it afterwards:
 
 | Layer | Where |
