@@ -602,6 +602,7 @@
       },
       "menu": {
         "change_avatar": "Change avatar",
+        "open_crew_world": "Open crew world",
         "quit": "Turn off companion"
       },
       "notif": {

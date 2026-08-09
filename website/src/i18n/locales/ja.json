@@ -942,6 +942,7 @@
       },
       "menu": {
         "change_avatar": "アバターを変更",
+        "open_crew_world": "クルーワールドを開く",
         "quit": "コンパニオンをオフにする"
       },
       "notif": {

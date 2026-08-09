@@ -938,6 +938,7 @@
       },
       "menu": {
         "change_avatar": "아바타 변경",
+        "open_crew_world": "크루 월드 열기",
         "quit": "컴패니언 끄기"
       },
       "notif": {
