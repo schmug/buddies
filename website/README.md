@@ -28,15 +28,15 @@ rm -rf ../src/kiro_crew/static/dist && cp -r dist ../src/kiro_crew/static/dist
 ## Test and lint
 
 ```bash
-npx tsc -b           # the real type check
-npm run lint         # eslint
-npm run test         # website vitest suite + the Electron suite (a jscpd pretest runs first)
+npm run typecheck       # tsc -b — application code
+npm run typecheck:tests # test code, integration/ and playwright/
+npm run lint            # eslint
+npm run test            # website vitest suite + the Electron suite (a jscpd pretest runs first)
 ```
 
-**`npm run typecheck` checks zero files** (it is `tsc --noEmit`, and the root
-`tsconfig.json` has `"files": []`), so use `npx tsc -b` when you mean to type-check.
-Test layers, when to use which, and how Playwright really runs:
-[docs/testing.md](docs/testing.md).
+Application code and test code are two separate type-check projects, so both
+commands are needed. Test layers, when to use which, and how Playwright really
+runs: [docs/testing.md](docs/testing.md).
 
 ## Documentation
 
