@@ -966,13 +966,13 @@
         "title": "Crew Companion"
       },
       "manifest": {
-        "description": "Un compagnon de bureau pour Kiro Crew qui t’aide à rythmer ta journée : il t’invite à faire des pauses, garde les rappels que tu formules en langage courant et propose un court exercice de respiration quand tu as besoin de souffler. Il te signale aussi quand une session se termine, échoue ou attend ton accord.",
+        "description": "Un compagnon qui vit sur ton bureau et te montre ce que fait ton équipage. Chaque session qui travaille — ou qui t’attend — reçoit son propre personnage, et le compagnon te prévient quand l’une se termine, échoue ou attend ton accord. Clique sur un personnage pour ouvrir la vue d’équipage et lui répondre. Il t’aide aussi à rythmer ta journée, avec des rappels de pause, des rappels en langage courant et un court exercice de respiration.",
         "display_name": "Crew Companion",
-        "highlight_1": "De légers rappels de pause — boire, s’étirer, regarder au loin — à l’intervalle que tu choisis",
-        "highlight_2": "Des rappels que tu formules en langage courant, comme « bois de l’eau dans 20 minutes »",
-        "highlight_3": "Un court exercice de respiration pour souffler quand tu en as besoin",
-        "highlight_4": "Te signale quand une session se termine, échoue ou attend ton accord",
-        "highlight_5": "Flotte sur ton bureau avec un avatar interchangeable",
+        "highlight_1": "Un personnage sur ton bureau pour chaque session qui travaille ou qui t’attend",
+        "highlight_2": "Te prévient quand un tour se termine, échoue ou attend ton accord — les mauvaises nouvelles ne sont jamais mises en sourdine",
+        "highlight_3": "Clique sur un personnage pour ouvrir la vue d’équipage et valider, répondre ou regarder de plus près",
+        "highlight_4": "De légers rappels de pause, et des rappels que tu formules en langage courant, comme « bois de l’eau dans 20 minutes »",
+        "highlight_5": "Un court exercice de respiration, et un avatar interchangeable que tu peux importer ou dessiner toi-même",
         "page_label": "Crew Companion"
       },
       "memories": {

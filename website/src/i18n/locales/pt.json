@@ -966,13 +966,13 @@
         "title": "Crew Companion"
       },
       "manifest": {
-        "description": "Um companheiro de desktop para o Kiro Crew que ajuda você a dosar o seu dia: ele lembra você de fazer pausas, guarda os lembretes que você define em linguagem simples e conduz um exercício curto de respiração quando você precisa se recompor. Também avisa quando uma sessão termina, falha ou precisa do seu OK.",
+        "description": "Um companheiro que fica na sua área de trabalho e mostra o que a sua equipe está fazendo. Cada sessão que está trabalhando — ou esperando por você — ganha um personagem próprio, e o companheiro avisa quando uma termina, falha ou precisa do seu OK. Clique em um personagem para abrir a visão da equipe e responder por lá. Ele também ajuda você a dosar o seu dia, com lembretes de pausa, lembretes em linguagem simples e um exercício curto de respiração.",
         "display_name": "Crew Companion",
-        "highlight_1": "Lembretes leves de pausa — beber água, se alongar, olhar para longe — no intervalo que você escolher",
-        "highlight_2": "Lembretes que você define em linguagem simples, como “beber água em 20 minutos”",
-        "highlight_3": "Um exercício curto de respiração para se recompor quando precisar",
-        "highlight_4": "Avisa quando uma sessão termina, falha ou precisa do seu OK",
-        "highlight_5": "Flutua na sua área de trabalho com um avatar que você pode trocar",
+        "highlight_1": "Um personagem na sua área de trabalho para cada sessão que está trabalhando ou esperando por você",
+        "highlight_2": "Avisa quando um turno termina, falha ou precisa da sua aprovação — más notícias nunca são silenciadas",
+        "highlight_3": "Clique em um personagem para abrir a visão da equipe e aprovar, responder ou olhar mais de perto",
+        "highlight_4": "Lembretes leves de pausa, e lembretes que você define em linguagem simples, como “beber água em 20 minutos”",
+        "highlight_5": "Um exercício curto de respiração, e um avatar que você pode trocar, importar ou desenhar",
         "page_label": "Crew Companion"
       },
       "memories": {

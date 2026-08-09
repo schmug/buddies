@@ -966,13 +966,13 @@
         "title": "Crew Companion"
       },
       "manifest": {
-        "description": "Un compagno da scrivania per Kiro Crew che ti aiuta a dare ritmo alla giornata: ti invita a fare pause, conserva i promemoria che imposti in linguaggio naturale e propone un breve esercizio di respirazione quando hai bisogno di ricaricarti. Ti avvisa anche quando una sessione finisce, va in errore o attende un tuo OK.",
+        "description": "Un compagno che vive sulla tua scrivania e ti mostra cosa sta facendo il tuo equipaggio. Ogni sessione che sta lavorando — o che ti sta aspettando — ha un personaggio tutto suo, e il compagno ti avvisa quando una finisce, va in errore o attende il tuo OK. Fai clic su un personaggio per aprire la vista dell’equipaggio e rispondergli. Ti aiuta anche a dare ritmo alla giornata, con inviti a fare pause, promemoria in linguaggio naturale e un breve esercizio di respirazione.",
         "display_name": "Crew Companion",
-        "highlight_1": "Inviti gentili a fare una pausa — bere, allungarsi, guardare lontano — con l’intervallo che scegli tu",
-        "highlight_2": "Promemoria che imposti in linguaggio naturale, come «bere acqua tra 20 minuti»",
-        "highlight_3": "Un breve esercizio di respirazione per ricaricarti quando ne hai bisogno",
-        "highlight_4": "Ti dice quando una sessione finisce, va in errore o attende un tuo OK",
-        "highlight_5": "Galleggia sulla scrivania con un avatar sostituibile",
+        "highlight_1": "Un personaggio sulla tua scrivania per ogni sessione che sta lavorando o che ti sta aspettando",
+        "highlight_2": "Ti avvisa quando un turno finisce, va in errore o attende la tua approvazione — le cattive notizie non vengono mai silenziate",
+        "highlight_3": "Fai clic su un personaggio per aprire la vista dell’equipaggio e approvare, rispondere o guardare più da vicino",
+        "highlight_4": "Inviti gentili a fare una pausa, e promemoria che imposti in linguaggio naturale, come «bere acqua tra 20 minuti»",
+        "highlight_5": "Un breve esercizio di respirazione, e un avatar sostituibile che puoi importare o disegnare tu",
         "page_label": "Crew Companion"
       },
       "memories": {
