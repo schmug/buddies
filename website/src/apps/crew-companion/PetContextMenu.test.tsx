@@ -1,16 +1,22 @@
 /**
  * The companion's menu, and its link into the crew world.
  *
- * Two things are pinned here that a reader of `PetContextMenu` alone would not see:
+ * Two properties are pinned here for the first time, both invisible to a reader of
+ * `PetContextMenu` alone:
  *
  *  * The crew-world item acts in the RENDERER (`openCrewWorld`) rather than being
  *    forwarded to the main process. `petBridge.contextMenuAction` has no branch for
  *    it, and the preload's fall-through would swallow the action silently — a menu
  *    item that does nothing at all.
- *  * The menu's hitbox is the whole viewport, INDEPENDENT of how many items the menu
- *    has. The overlay is click-through everywhere except the reported rect, so an
- *    item added below the fold of a menu-sized rect would be unclickable; this is
- *    what makes growing the menu safe.
+ *  * `onClose` fires exactly ONCE per item. `ContextMenu` closes before it dispatches,
+ *    so a handler that also closes would run the parent's teardown twice. The COUNT is
+ *    what catches that; asserting the mere call passes either way.
+ *
+ * The hitbox case is a re-statement rather than a new property: the same rect is
+ * already pinned on `ContextMenu` itself in `src/test/CrewCompanionContextMenu.test.tsx`.
+ * It is repeated at THIS level because what matters when the pet's menu grows is that
+ * the rect is independent of the item COUNT — the overlay is click-through outside the
+ * reported region, so an item below the fold of a menu-sized rect would be unclickable.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, cleanup } from '@testing-library/react'
@@ -59,7 +65,10 @@ describe('PetContextMenu', () => {
       expect.anything(),
       expect.anything(),
     )
-    expect(onClose).toHaveBeenCalled()
+    // Exactly once. `ContextMenu` closes BEFORE it dispatches, so a handler that
+    // closes as well would tear the parent down twice; `toHaveBeenCalled()` alone
+    // cannot tell the two apart.
+    expect(onClose).toHaveBeenCalledTimes(1)
   })
 
   it('does not forward the crew world to the main process', async () => {
