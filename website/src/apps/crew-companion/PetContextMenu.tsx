@@ -32,8 +32,18 @@ export function PetContextMenu({ x, y, onClose }: Props) {
 
   const items: ContextMenuEntry[] = useMemo(() => {
     return [
+      // The gallery is its own window, so this is its entry point. It is NOT in
+      // Settings: importing and authoring packs are creation flows that don't
+      // belong in a preferences column.
+      //
+      // Stays FIRST: it is the row this menu has always opened with, so anything
+      // inserted above it lands under a user's habitual click.
+      { label: i18nT('apps.crewCompanion.menu.change_avatar'), action: 'gallery' },
       // The companion's link into the crew scene, and the only way to reach it from
-      // the overlay: the pet has no chat surface of its own.
+      // the overlay: the pet has no chat surface of its own. It sits with the avatar
+      // ABOVE the separator, which is there to fence off the destructive row below.
+      // So the only entry this displaces is "turn off", and it displaces it downward
+      // — a stale click aimed there opens a window rather than dismissing the pet.
       //
       // Always offered, never conditioned on whether the Agent Worlds app is enabled.
       // `/worlds-popout` is routed in `main.tsx` OUTSIDE `<App/>` and its scenes are
@@ -42,10 +52,6 @@ export function PetContextMenu({ x, y, onClose }: Props) {
       // also mean a second `/api/apps` poll from this window: the main process's poll
       // reaches only itself, and this overlay mounts with no store.
       { label: i18nT('apps.crewCompanion.menu.open_crew_world'), action: CREW_WORLD_ACTION },
-      // The gallery is its own window, so this is its entry point. It is NOT in
-      // Settings: importing and authoring packs are creation flows that don't
-      // belong in a preferences column.
-      { label: i18nT('apps.crewCompanion.menu.change_avatar'), action: 'gallery' },
       { separator: true },
       // Quit names the APP, not the pet: "Quit Kiro" read as dismissing the
       // character rather than closing Crew Companion.
