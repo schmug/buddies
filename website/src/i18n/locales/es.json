@@ -9045,6 +9045,26 @@
       "v": "v"
     },
     "scenes": {
+      "config": {
+        "crew_desc": "Tus agentes como personajes propios",
+        "crew_label": "Tripulación",
+        "ghost_desc": "Fantasmas Kiro con sombreros, gafas y capas",
+        "ghost_label": "Aquelarre Kiro",
+        "mission_desc": "Centro de operaciones de la NASA",
+        "mission_label": "Control de misión",
+        "neural_desc": "Mapa de constelaciones",
+        "neural_label": "Red neuronal",
+        "office_desc": "Oficina pixelada clásica",
+        "office_label": "Oficina",
+        "panda_desc": "Espacio de trabajo en bosque de bambú, todo pandas",
+        "panda_label": "Guarida panda",
+        "serengeti_desc": "Sabana del Serengeti con jirafas, facóqueros y elefantes",
+        "serengeti_label": "Abrevadero",
+        "underwater_desc": "Estación submarina",
+        "underwater_label": "Laboratorio profundo",
+        "wizard_desc": "Laboratorio de alquimia",
+        "wizard_label": "Torre del mago"
+      },
       "ghostScene": {
         "friendly_hauntings_only": "solo apariciones amistosas",
         "kiro_ghost_haunt_animation": "Animación del fantasma de Kiro rondando",
@@ -9078,6 +9098,15 @@
         "panda_den": "🐼 Guarida de pandas",
         "panda_office_scene": "Escena de la oficina de pandas",
         "panda_office_scene_labels": "Etiquetas de la escena de la oficina de pandas"
+      },
+      "petCastScene": {
+        "blocked": "Bloqueado",
+        "idle": "Inactivo",
+        "needs_you": "Te necesita",
+        "no_agents_right_now": "No hay agentes ahora mismo",
+        "open_session": "Abrir {{name}}",
+        "ready": "Listo",
+        "working": "Trabajando"
       },
       "underwaterLabScene": {
         "deep_sea_lab": "Laboratorio de las profundidades",
@@ -10875,6 +10904,7 @@
       "playing_in_popout_window": "Reproduciéndose en la ventana emergente",
       "pop_out_to_separate_window": "Abrir en una ventana aparte",
       "present": "en la sala,",
+      "scene_picker": "Escena {{label}}: {{desc}}",
       "show_controls": "Mostrar los controles",
       "slot_many": "{{count}} slots",
       "slot_one": "{{count}} slot",

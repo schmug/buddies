@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { screen, fireEvent } from '@testing-library/react'
 import { renderWithProviders } from './helpers'
 import WorldsPage from '../pages/WorldsPage'
+import { SCENES } from '../pages/scenes/config'
 import type { AgentSource } from '../hooks/useAgentSync'
 
 // Mock useAgentSync to avoid real API calls
@@ -40,6 +41,12 @@ vi.mock('../pages/scenes/UnderwaterLabScene', () => ({
 vi.mock('../pages/scenes/mission-control/MissionControlScene', () => ({
   default: ({ agents }: { agents: AgentSource[] }) => <div data-testid="scene-mission">MissionScene ({agents.length})</div>,
 }))
+// The crew scene is DOM rather than canvas, but it still resolves appearance art
+// over the gateway; stubbed for the same reason the rest are — this suite is about
+// the page, and PetCastScene.test.tsx covers the scene itself.
+vi.mock('../pages/scenes/PetCastScene', () => ({
+  default: ({ agents }: { agents: AgentSource[] }) => <div data-testid="scene-crew">CrewScene ({agents.length})</div>,
+}))
 
 beforeEach(() => {
   localStorage.clear()
@@ -63,11 +70,24 @@ describe('WorldsPage', () => {
 
     it('renders all scene picker buttons', () => {
       renderWithProviders(<WorldsPage />)
+      expect(screen.getByText('Crew')).toBeInTheDocument()
       expect(screen.getByText('Office')).toBeInTheDocument()
       expect(screen.getByText('Neural Net')).toBeInTheDocument()
       expect(screen.getByText('Wizard Tower')).toBeInTheDocument()
       expect(screen.getByText('Deep Lab')).toBeInTheDocument()
       expect(screen.getByText('Mission Control')).toBeInTheDocument()
+    })
+
+    it('offers one picker button per registered scene', () => {
+      const { container } = renderWithProviders(<WorldsPage />)
+      // The picker buttons are the only ones carrying aria-pressed.
+      expect(container.querySelectorAll('button[aria-pressed]')).toHaveLength(SCENES.length)
+      expect(SCENES).toHaveLength(9)
+    })
+
+    it('leads the picker with the crew scene', () => {
+      renderWithProviders(<WorldsPage />)
+      expect(SCENES[0].key).toBe('crew')
     })
   })
 
@@ -101,10 +121,19 @@ describe('WorldsPage', () => {
       expect(underwaterWrapper.style.display).not.toBe('none')
     })
 
+    it('switches to the crew scene on click', () => {
+      renderWithProviders(<WorldsPage />)
+      fireEvent.click(screen.getByText('Crew'))
+      const crewWrapper = screen.getByTestId('scene-crew').parentElement!
+      expect(crewWrapper.style.display).not.toBe('none')
+      expect(screen.getByTestId('scene-office').parentElement!.style.display).toBe('none')
+    })
+
     it('keeps all scenes mounted (hidden, not removed)', () => {
       renderWithProviders(<WorldsPage />)
       fireEvent.click(screen.getByText('Neural Net'))
       // All four scenes should still be in the DOM
+      expect(screen.getByTestId('scene-crew')).toBeInTheDocument()
       expect(screen.getByTestId('scene-office')).toBeInTheDocument()
       expect(screen.getByTestId('scene-neural')).toBeInTheDocument()
       expect(screen.getByTestId('scene-wizard')).toBeInTheDocument()
