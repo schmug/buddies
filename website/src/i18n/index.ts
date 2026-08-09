@@ -88,11 +88,19 @@ function mergeCatalogs(
  * A language listed in `SUPPORTED_LANGUAGES` MUST appear here; `catalogParity.test.ts` asserts the two lists agree, so a language
  * added to one and not the other fails CI instead of silently rendering keys.
  *
+ * Also exported directly, and not only through `CATALOGS`, because this is the set a
+ * gate means by "the catalogs a changed English value must be re-translated into" —
+ * `CATALOGS` carries the DEV-only pseudolocale, which is generated and never
+ * translated. `scripts/lib/i18n-catalogs.mjs` reads these codes for the
+ * `check-app-manifest-sync.mjs` remediation message, and
+ * `src/test/i18nCatalogRegistry.test.ts` pins its parse against this constant so the
+ * message cannot name a set the runtime does not bind.
+ *
  * Single `translation` namespace: keys are already domain-prefixed
  * (`settings.display.view`, `chat.composer.send`), which gives the same
  * grouping a namespace split would without making every call site name one.
  */
-const AUTHORED_CATALOGS: Record<string, { translation: Record<string, unknown> }> = {
+export const AUTHORED_CATALOGS: Record<string, { translation: Record<string, unknown> }> = {
   en: { translation: mergeCatalogs(enGenerated, enManual) },
   'zh-CN': { translation: zhCN },
   hi: { translation: hi },

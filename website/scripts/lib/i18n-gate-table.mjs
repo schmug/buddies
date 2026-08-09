@@ -124,7 +124,7 @@ export const CHECKS = [
     // a fallback. The price of that design is two copies of the same sentence, and
     // this is what stops them drifting: edit a `description` in `app.json` and,
     // unchecked, the CLI shows the new words while the dashboard shows the old ones
-    // and nine translations silently describe a string that no longer exists.
+    // and every translation silently describes a string that no longer exists.
     // Hard-zero and honestly so: both sides are files at this commit, no baseline is
     // read, and a failure names the exact key and both strings.
     id: 'manifest-sync', script: 'manifest', scope: 'repo', enforce: 'hard-zero',
