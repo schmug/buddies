@@ -3,7 +3,7 @@ import { deriveCrewStatus, DESKTOP_CAST_CAP, type StatusInput } from './crewStat
 
 /** A slot with nothing happening. Spread and override one field per test. */
 const base: StatusInput = {
-  id: 'slot-a', slotKey: 'a', name: 'A',
+  id: 'slot-a', slotKey: 'a', name: 'A', kind: 'slot',
   running: false, waitingForInput: false, pendingApproval: false,
   failed: false, unread: false, since: 0,
 }
@@ -124,6 +124,56 @@ describe('deriveCrewStatus — cast membership', () => {
       { ...base, id: 'older', slotKey: 'o', running: true, since: 100 },
     ])
     expect(agents.map(a => a.id)).toEqual(['older', 'newer'])
+  })
+})
+
+describe('deriveCrewStatus — cast membership by kind', () => {
+  it('keeps a running cron out of the cast while still counting it', () => {
+    // A cron runs on a schedule with nobody watching; a sprite for it would wander
+    // the desktop on the clock's behalf rather than the user's. It is still crew,
+    // so the world lists it and the pet's aggregate reflects it.
+    const { cast, agents, aggregate } = deriveCrewStatus([{ ...base, kind: 'cron', running: true }])
+    expect(cast).toEqual([])
+    expect(agents).toHaveLength(1)
+    expect(agents[0].state).toBe('running')
+    expect(aggregate).toBe('running')
+  })
+
+  it('keeps a running subagent out of the cast while still counting it', () => {
+    // A spawned subagent belongs to the session that spawned it, which already has
+    // its own sprite; casting both would double-count one piece of work.
+    const { cast, agents, aggregate } = deriveCrewStatus([
+      { ...base, kind: 'spawn', running: true },
+    ])
+    expect(cast).toEqual([])
+    expect(agents).toHaveLength(1)
+    expect(aggregate).toBe('running')
+  })
+
+  it('keeps them out at the highest-priority state too, not only while running', () => {
+    // "Never cast members regardless of state" — needs-input is the state that would
+    // otherwise force its way in, so it is the one worth pinning.
+    const { cast, aggregate } = deriveCrewStatus([
+      { ...base, id: 'cron-a', slotKey: 'c', kind: 'cron', running: true, pendingApproval: true },
+      { ...base, id: 'spawn-a', slotKey: 's', kind: 'spawn', running: true, waitingForInput: true },
+    ])
+    expect(cast).toEqual([])
+    expect(aggregate).toBe('needs-input')
+  })
+
+  it('casts only the chat slots when kinds are mixed', () => {
+    const { cast, agents } = deriveCrewStatus([
+      { ...base, id: 'slot-a', slotKey: 'a', running: true },
+      { ...base, id: 'cron-a', slotKey: 'c', kind: 'cron', running: true },
+      { ...base, id: 'spawn-a', slotKey: 's', kind: 'spawn', running: true },
+    ])
+    expect(cast.map((a) => a.id)).toEqual(['slot-a'])
+    expect(agents).toHaveLength(3)
+  })
+
+  it('carries the kind onto the derived agent, so a renderer can label it', () => {
+    const { agents } = deriveCrewStatus([{ ...base, kind: 'cron' }])
+    expect(agents[0].kind).toBe('cron')
   })
 })
 
