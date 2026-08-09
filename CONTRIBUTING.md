@@ -36,7 +36,9 @@ tell you in a paragraph.
 ## Prerequisites
 
 - macOS or Linux (Windows is not supported by the `kiro-cli` backend)
-- Python ≥ 3.9
+- Python ≥ 3.10 (the code uses `contextlib.aclosing`, added in 3.10)
+- pip ≥ 25.1 — the dev tooling installs through PEP 735 `--group`, added in that
+  release. `python -m pip install --upgrade pip` in a fresh venv gets you there.
 - Node.js ≥ 18 and npm (for the frontend)
 - The `kiro-cli` agent on your `PATH`, logged in (`kiro-cli login`) — it is the
   only LLM backend (`agent.provider = acp`)
@@ -56,9 +58,10 @@ npm run build
 cp -r dist ../src/kiro_crew/static/dist
 cd ..
 
-# 3. Editable backend install (with optional voice extras)
+# 3. Editable backend install: runtime deps, voice extras, and dev tooling
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[voice]"
+python -m pip install --upgrade pip          # --group needs pip ≥ 25.1
+pip install -e ".[voice]" --group dev        # run from the repo root
 
 # 4. Configure and verify
 kirocrew setup               # data dir, agent backend, Slack tokens (optional)
@@ -67,6 +70,21 @@ kirocrew gateway             # start server (dashboard + Slack)
 ```
 
 The dashboard is at `http://localhost:5476`.
+
+`--group dev` is doing real work and is easy to drop by accident. It installs
+the PEP 735 `[dependency-groups] dev` set from `pyproject.toml` — pytest and its
+plugins, black, isort, flake8, mypy — at the versions CI pins, and it is a
+separate mechanism from the `[voice]` extra rather than another name inside the
+brackets. Omit it and the install still succeeds, `kirocrew` still runs, and
+`python -m pytest` fails with `No module named pytest`. The flag reads
+`pyproject.toml` from the current directory, so run it from the repository root.
+
+If you are stuck on a pip older than 25.1 and cannot upgrade it,
+`pip install -e ".[voice,dev]"` falls back to the `dev` extra in `setup.cfg`,
+which supplies the same five tools. It is a fallback, not an equivalent:
+its versions float where the group pins, and it omits `jsonschema`, so the
+config-validation tests silently skip instead of running. CI installs the group,
+so the group is what your results have to match.
 
 **Dashboard-only mode**: skip Slack tokens during `kirocrew setup` to run
 without Slack.
@@ -95,9 +113,24 @@ truth (with `.github/workflows/ci.yml` canonical for the gate list).
 ### Backend
 
 ```bash
-pip install -e ".[voice]"    # installs deps + console scripts
-pytest                       # run the test suite
+# Deps, console scripts, and the dev tooling every check below needs
+pip install -e ".[voice]" --group dev
+
+# The blocking checks, as CI runs them
+isort --check-only src/kiro_crew test
+flake8 src/kiro_crew test
+mypy src/kiro_crew
+python -m pytest
 ```
+
+Two things about these that will otherwise cost you an afternoon. **`black
+--check` is not a gate** and is deliberately not in the list: the tree has never
+had its bulk format pass, so `black src/kiro_crew test` rewrites over a thousand
+files and buries your change. Black is installed and configured (line length
+100) — run it on the files you touched, not on the tree. **`mypy` on macOS
+reports three `os.listxattr`/`getxattr`/`setxattr` errors in `hooks.py`** that CI
+does not: those calls are already guarded by `hasattr`, and typeshed declares
+them Linux-only. `mypy --platform linux src/kiro_crew` reproduces what CI sees.
 
 ### Frontend
 
