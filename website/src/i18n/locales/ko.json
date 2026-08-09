@@ -8468,6 +8468,26 @@
       "v": "v"
     },
     "scenes": {
+      "config": {
+        "crew_desc": "에이전트가 저마다의 캐릭터로",
+        "crew_label": "크루",
+        "ghost_desc": "모자와 안경, 망토를 걸친 Kiro 유령들",
+        "ghost_label": "Kiro 유령의 집",
+        "mission_desc": "NASA 운영 센터",
+        "mission_label": "미션 컨트롤",
+        "neural_desc": "별자리 지도",
+        "neural_label": "뉴럴 넷",
+        "office_desc": "클래식 픽셀 오피스",
+        "office_label": "오피스",
+        "panda_desc": "대나무 숲 작업 공간, 전부 판다",
+        "panda_label": "판다 소굴",
+        "serengeti_desc": "기린과 혹멧돼지, 코끼리가 있는 세렝게티 사바나",
+        "serengeti_label": "물웅덩이",
+        "underwater_desc": "수중 스테이션",
+        "underwater_label": "심해 연구소",
+        "wizard_desc": "연금술 실험실",
+        "wizard_label": "마법사의 탑"
+      },
       "ghostScene": {
         "friendly_hauntings_only": "친절한 유령만",
         "kiro_ghost_haunt_animation": "Kiro 유령 출몰 애니메이션",
@@ -10215,6 +10235,7 @@
       "playing_in_popout_window": "팝아웃 창에서 재생 중",
       "pop_out_to_separate_window": "별도 창으로 팝아웃",
       "present": "참석,",
+      "scene_picker": "{{label}} 장면: {{desc}}",
       "show_controls": "컨트롤 표시",
       "slot_other": "슬롯 {{count}}개"
     },

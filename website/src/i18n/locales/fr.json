@@ -9038,6 +9038,26 @@
       "v": "v"
     },
     "scenes": {
+      "config": {
+        "crew_desc": "Vos agents en personnages à part entière",
+        "crew_label": "Équipage",
+        "ghost_desc": "Fantômes Kiro en chapeaux, lunettes et capes",
+        "ghost_label": "Manoir Kiro",
+        "mission_desc": "Centre d'opérations de la NASA",
+        "mission_label": "Contrôle de mission",
+        "neural_desc": "Carte de constellations",
+        "neural_label": "Réseau neuronal",
+        "office_desc": "Bureau pixelisé classique",
+        "office_label": "Bureau",
+        "panda_desc": "Espace de travail en forêt de bambous, que des pandas",
+        "panda_label": "Tanière des pandas",
+        "serengeti_desc": "Savane du Serengeti avec girafes, phacochères et éléphants",
+        "serengeti_label": "Point d'eau",
+        "underwater_desc": "Station sous-marine",
+        "underwater_label": "Labo des profondeurs",
+        "wizard_desc": "Laboratoire d'alchimie",
+        "wizard_label": "Tour du magicien"
+      },
       "ghostScene": {
         "friendly_hauntings_only": "hantises amicales uniquement",
         "kiro_ghost_haunt_animation": "Animation du fantôme Kiro",
@@ -10877,6 +10897,7 @@
       "playing_in_popout_window": "Lecture dans la fenêtre détachée",
       "pop_out_to_separate_window": "Détacher dans une fenêtre séparée",
       "present": "présents,",
+      "scene_picker": "Scène {{label}} : {{desc}}",
       "show_controls": "Afficher les commandes",
       "slot_many": "{{count}} emplacements",
       "slot_one": "{{count}} emplacement",

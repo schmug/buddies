@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { useAgentSync } from '../hooks/useAgentSync'
 import { usePopoutSync } from '../hooks/usePopoutSync'
 import { useWebSocket } from '../hooks/useWebSocket'
-import { SCENES, SCENE_STORAGE_KEY, SCENE_LAYOUT_SCALE, type SceneKey } from './scenes/config'
+import { SCENES, SCENE_LABEL_KEY, SCENE_STORAGE_KEY, SCENE_LAYOUT_SCALE, type SceneKey } from './scenes/config'
 import { SCENE_COMPONENTS } from './scenes/components'
 import { useAppDispatch } from '../store'
 import { fetchSlots } from '../store/dashboardSlice'
@@ -79,7 +79,7 @@ export default function WorldsPopout() {
                   fontFamily: 'var(--font-body, inherit)', transition: 'all 0.15s ease',
                 }}
               >
-                <span>{s.icon}</span><span>{s.label}</span>
+                <span>{s.icon}</span><span>{i18nT(SCENE_LABEL_KEY[s.key])}</span>
               </button>
             ))}
           </div>

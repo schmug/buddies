@@ -99,20 +99,66 @@ export function toStatusInputs(agents: AgentSource[]): StatusInput[] {
 /** Gap between a character and the popover anchored under it. */
 const ANCHOR_GAP_PX = 6
 
+/** Breathing room between the popover and the scene's own edges. */
+const SCENE_EDGE_PX = 8
+
+/** The popover's declared width, from `useAgentPopover`'s thread view. */
+const POPOVER_W_PX = 272
+
+/**
+ * The popover's tallest form, measured from its own parts: 35 header + 192 message
+ * list at its 180px max + 35 approve/deny row + 40 composer.
+ *
+ * Budgeting for the tallest is what matters, because approve/deny and the composer are
+ * the BOTTOM-most parts — clip by a little and an agent cannot be unblocked or
+ * messaged from the world at all, which is most of the reason the crew scene exists.
+ */
+const POPOVER_H_PX = 302
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), Math.max(min, max))
+}
+
 /**
  * Where the tooltip and thread popover attach, relative to the scene container.
  *
- * BELOW the character, never over it. The popover is 272px wide and ~250px tall, so
- * anchoring at the character's own origin paints it across the character — and the
- * second click, which is the gesture that closes the popover, then hit-tests onto the
- * popover instead and the character can never be clicked again. Only a real cursor
- * observes this: `element.click()` dispatches straight at the node and never consults
- * what is painted on top of it.
+ * Two constraints, and satisfying only one of them re-breaks the other:
+ *
+ * 1. **Never over the character.** Anchoring at the character's own origin paints the
+ *    popover across it, and the second click — the gesture that closes it — then
+ *    hit-tests onto the popover, so the character can never be clicked again.
+ * 2. **Never outside the scene.** The scene is `overflow: hidden`, so a popover that
+ *    runs past an edge has its approve/deny row and composer simply cut off.
+ *
+ * Below the character satisfies both when there is room. When there is not — a second
+ * row in a short scene has neither 302px below it nor above it — the popover goes
+ * BESIDE the character instead, where the scene's full height is available to clamp
+ * into and the character's own column stays clear. A fixed vertical clamp was the
+ * obvious fix and is the wrong one: it buys constraint 2 by violating constraint 1,
+ * which was measured putting the popover back over the character it belongs to.
+ *
+ * Only a real cursor observes any of this. `element.click()` dispatches straight at a
+ * node and never consults what is painted on top of it or whether it is clipped.
  */
 export function characterAnchor(
-  box: { offsetLeft: number; offsetTop: number; offsetHeight: number },
+  box: { offsetLeft: number; offsetTop: number; offsetWidth: number; offsetHeight: number },
+  bounds: { width: number; height: number },
 ): { x: number; y: number } {
-  return { x: box.offsetLeft, y: box.offsetTop + box.offsetHeight + ANCHOR_GAP_PX }
+  const clampX = (v: number) => clamp(v, SCENE_EDGE_PX, bounds.width - POPOVER_W_PX - SCENE_EDGE_PX)
+  const clampY = (v: number) => clamp(v, SCENE_EDGE_PX, bounds.height - POPOVER_H_PX - SCENE_EDGE_PX)
+
+  const below = box.offsetTop + box.offsetHeight + ANCHOR_GAP_PX
+  if (below + POPOVER_H_PX + SCENE_EDGE_PX <= bounds.height) {
+    return { x: clampX(box.offsetLeft), y: below }
+  }
+
+  // Beside: right of the character when it fits there, otherwise left of it.
+  const right = box.offsetLeft + box.offsetWidth + ANCHOR_GAP_PX
+  const fitsRight = right + POPOVER_W_PX + SCENE_EDGE_PX <= bounds.width
+  return {
+    x: clampX(fitsRight ? right : box.offsetLeft - POPOVER_W_PX - ANCHOR_GAP_PX),
+    y: clampY(box.offsetTop),
+  }
 }
 
 export default function PetCastScene(
@@ -139,6 +185,13 @@ export default function PetCastScene(
   const sceneAgentFor = (agent: { id: string; name: string; state: AgentState; kind: AgentKind }) => ({
     id: agent.id, name: agent.name, x: 0, y: 0,
     running: agent.state === 'running', detail: '', kind: agent.kind,
+  })
+
+  // Read at event time, not at render: the scene resizes with the window and the
+  // popout, and a stale box would clamp against a width the scene no longer has.
+  const sceneBounds = () => ({
+    width: containerRef.current?.clientWidth ?? 0,
+    height: containerRef.current?.clientHeight ?? 0,
   })
 
   return (
@@ -174,9 +227,9 @@ export default function PetCastScene(
           key={agent.id}
           type="button"
           aria-label={i18nT('pages.scenes.petCastScene.open_session', { name: agent.name })}
-          onMouseEnter={(e) => popover.hover(sceneAgentFor(agent), characterAnchor(e.currentTarget))}
+          onMouseEnter={(e) => popover.hover(sceneAgentFor(agent), characterAnchor(e.currentTarget, sceneBounds()))}
           onMouseLeave={popover.clearHover}
-          onClick={(e) => popover.open(sceneAgentFor(agent), characterAnchor(e.currentTarget))}
+          onClick={(e) => popover.open(sceneAgentFor(agent), characterAnchor(e.currentTarget, sceneBounds()))}
           style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
             background: 'transparent', border: 'none', cursor: 'pointer', padding: 4,

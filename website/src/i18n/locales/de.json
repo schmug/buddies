@@ -8928,6 +8928,26 @@
       "v": "v"
     },
     "scenes": {
+      "config": {
+        "crew_desc": "Deine Agenten als eigene Figuren",
+        "crew_label": "Crew-Welt",
+        "ghost_desc": "Kiro-Geister mit Hüten, Brillen und Umhängen",
+        "ghost_label": "Kiro-Spukhaus",
+        "mission_desc": "NASA-Einsatzzentrale",
+        "mission_label": "Missionskontrolle",
+        "neural_desc": "Sternbildkarte",
+        "neural_label": "Neuronales Netz",
+        "office_desc": "Klassisches Pixelbüro",
+        "office_label": "Büro",
+        "panda_desc": "Arbeitsplatz im Bambuswald, lauter Pandas",
+        "panda_label": "Pandahöhle",
+        "serengeti_desc": "Serengeti-Savanne mit Giraffen, Warzenschweinen und Elefanten",
+        "serengeti_label": "Wasserstelle",
+        "underwater_desc": "Unterwasserstation",
+        "underwater_label": "Tiefseelabor",
+        "wizard_desc": "Alchemielabor",
+        "wizard_label": "Zauberturm"
+      },
       "ghostScene": {
         "friendly_hauntings_only": "nur freundliches Spuken",
         "kiro_ghost_haunt_animation": "Animation des Kiro-Geisterspuks",
@@ -10757,6 +10777,7 @@
       "playing_in_popout_window": "Wird im ausgekoppelten Fenster abgespielt",
       "pop_out_to_separate_window": "In ein separates Fenster auskoppeln",
       "present": "vorhanden,",
+      "scene_picker": "Szene {{label}}: {{desc}}",
       "show_controls": "Steuerung anzeigen",
       "slot_one": "{{count}} Slot",
       "slot_other": "{{count}} Slots"
