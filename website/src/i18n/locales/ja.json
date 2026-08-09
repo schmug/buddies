@@ -1047,6 +1047,7 @@
         "hiding": "隠れ中",
         "idle": "待機",
         "listening": "聞き取り中",
+        "needsInput": "対応待ち",
         "offline": "オフライン",
         "peekThinking": "のぞいて考え中",
         "peeking": "のぞき見",

@@ -4,11 +4,11 @@
  *
  * The companion's overlay covers the whole display and is click-through by
  * default; the ONLY regions that accept input are the companion, its speech
- * bubble, and (while it is open) the context menu. The renderer reports those
- * rects to the main process, which polls the cursor at ~60fps and toggles
- * ignore-mouse itself — reporting the rects instead of toggling input on pointer
- * enter/leave is what removes the IPC round-trip that let a click on the
- * companion body fall through to the window behind it.
+ * bubble, (while it is open) the context menu, and each cast sprite. The
+ * renderer reports those rects to the main process, which polls the cursor at
+ * ~60fps and toggles ignore-mouse itself — reporting the rects instead of
+ * toggling input on pointer enter/leave is what removes the IPC round-trip that
+ * let a click on the companion body fall through to the window behind it.
  *
  * Pure and free of React/Electron so both sides can share the same maths and it
  * can be unit-tested on its own.
@@ -66,21 +66,29 @@ export interface ReportedHitboxes {
   pet: HitRect
   bubble: HitRect | null
   menu: HitRect | null
+  /**
+   * One rect per cast sprite. A list rather than a merged bounding box: the cast
+   * spreads out behind the pet, and a box enclosing all of them would make the empty
+   * space between sprites swallow clicks meant for the window underneath.
+   */
+  cast: HitRect[]
 }
 
 /**
  * Collect the rects the overlay should report. The companion is always present;
- * the bubble and the menu are present only when shown.
+ * the bubble, the menu and the cast are present only when shown.
  */
 export function reportedHitboxes(input: {
   pos: { x: number; y: number }
   bubbleRect: Rect | null
   menuRect: HitRect | null
+  cast?: HitRect[]
 }): ReportedHitboxes {
   return {
     pet: petHitbox(input.pos),
     bubble: bubbleHitbox(input.bubbleRect),
     menu: input.menuRect ?? null,
+    cast: input.cast ?? [],
   }
 }
 
@@ -90,13 +98,14 @@ export function reportedHitboxes(input: {
  * accepting input or return to click-through.
  */
 export function hitsAny(
-  boxes: { pet?: HitRect | null; bubble?: HitRect | null; menu?: HitRect | null },
+  boxes: { pet?: HitRect | null; bubble?: HitRect | null; menu?: HitRect | null; cast?: HitRect[] },
   x: number,
   y: number,
 ): boolean {
   return (
     pointInRect(boxes.pet, x, y) ||
     pointInRect(boxes.bubble, x, y) ||
-    pointInRect(boxes.menu, x, y)
+    pointInRect(boxes.menu, x, y) ||
+    (boxes.cast ?? []).some((r) => pointInRect(r, x, y))
   )
 }
