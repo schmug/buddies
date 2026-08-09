@@ -18,17 +18,21 @@ export interface SettingsModalProps {
 }
 
 export default function SettingsModal({ onClose, setErr }: SettingsModalProps) {
-  const [basePath, setBasePath] = useState('')
+  // The edit buffer holds only what the operator typed, and is null until they
+  // type anything.
+  const [draft, setDraft] = useState<string | null>(null)
 
-  // Server read through React Query (repo `use-react-query` rule); the input
-  // stays local state because it is an edit buffer, seeded once the read lands.
+  // Server read through React Query (repo `use-react-query` rule).
   const settingsQuery = useQuery({
     queryKey: ['spec-builder', 'settings'],
     queryFn: () => specApi.getSettings(),
   })
-  useEffect(() => {
-    if (settingsQuery.data) setBasePath(settingsQuery.data.base_path || '')
-  }, [settingsQuery.data])
+  // Derived during render, NOT seeded into state by an effect: that keeps "the
+  // read landed" and "the field shows the stored path" in one commit. An effect
+  // would put the seed a commit behind, so the commit that un-disables Save (see
+  // `unloaded` below) would still carry an empty buffer -- a frame in which Save
+  // writes '' over a configured path, which is the very thing the guard prevents.
+  const basePath = draft ?? settingsQuery.data?.base_path ?? ''
   // Report a failed read through the page-level error the caller already owns.
   // Save is disabled in that state (see the footer), and a control that is
   // disabled for no visible reason is its own defect.
@@ -50,9 +54,9 @@ export default function SettingsModal({ onClose, setErr }: SettingsModalProps) {
     onError: (e) => setErr((e as Error).message),
   })
   const busy = saveMutation.isPending
-  // basePath is seeded from the query, so until the read LANDS the buffer is still
-  // the initial '' -- saving then would overwrite a configured path with nothing.
-  // Guarding on the write alone (`busy`) left exactly that window open.
+  // Until the read LANDS there is no stored path to fall back to, so basePath is
+  // '' -- saving then would overwrite a configured path with nothing. Guarding on
+  // the write alone (`busy`) leaves exactly that window open.
   const unloaded = settingsQuery.isPending || settingsQuery.isError
   const save = () => saveMutation.mutate(basePath.trim())
 
@@ -83,7 +87,7 @@ export default function SettingsModal({ onClose, setErr }: SettingsModalProps) {
         aria-label={i18nT('apps.specBuilder.components.settingsModal.spec_storage_folder_path')}
         className="w-full"
         value={basePath}
-        onChange={(e) => setBasePath(e.target.value)}
+        onChange={(e) => setDraft(e.target.value)}
         placeholder={i18nT('apps.specBuilder.components.settingsModal.empty_keep_specs_with_each_project_recommended')}
       />
     </Modal>
