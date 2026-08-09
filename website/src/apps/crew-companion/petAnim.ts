@@ -92,6 +92,20 @@ export const CELEBRATE_MS = 900
  */
 export const CELEBRATE_PROP_HOLD_MS = 450
 
+/**
+ * How often a HELD head-cock is replayed, on every surface that can hold one.
+ *
+ * `.kg-anim-curious` is a 2000ms one-shot that ends back at neutral, and `needs-input`
+ * is the only state that persists until a person acts — so without a replay the
+ * surface goes still for the one thing that exists to be noticed, and stiller than the
+ * `running` agents beside it, whose `ponder-loop` is `infinite`. Well above the
+ * keyframe's own length, so it reads as a periodic glance rather than a twitch.
+ *
+ * Lives beside the keyframe lengths it is derived from because three surfaces hold the
+ * state: the main companion (pet.tsx), the desktop cast sprites and the crew scene.
+ */
+export const ATTENTION_REPLAY_MS = 8_000
+
 export function activeAnimFor({ state, mood, docked = false, walking = false, idleAnim = null }: AnimInputs): PetAnim {
   if (state === 'error' && !docked) return 'error'
   if (state === 'done') return 'celebrate'

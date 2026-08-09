@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from 'vitest'
-import { fireEvent, screen, within } from '@testing-library/react'
+import { act, fireEvent, screen, within } from '@testing-library/react'
 import { renderWithProviders } from './helpers'
 import PetCastScene, { characterAnchor, toStatusInputs } from '../pages/scenes/PetCastScene'
+import { ATTENTION_REPLAY_MS } from '../apps/crew-companion/petAnim'
 import type { AgentSource } from '../hooks/useAgentSync'
 
 // The popover fetches the mini thread the instant it opens; keep it off the network.
@@ -48,6 +49,46 @@ describe('PetCastScene', () => {
     expect(container.querySelector('.kg-anim-curious')).toBeTruthy()
     expect(container.querySelector('.kg-anim-celebrate')).toBeNull()
     expect(container.querySelector('.kg-anim-ponder-loop')).toBeNull()
+  })
+
+  /**
+   * ...and it must keep cocking it. `kg-curious` is a 2000ms one-shot ending back at
+   * neutral, so a character that HOLDS `needs-input` settles still while every
+   * `running` character beside it bobs forever on an infinite loop. Scanning a full
+   * cast, the one that cannot move without you would be the one that moves least.
+   *
+   * Asserted on node identity, because the class name never changes — the remount is
+   * what replays the keyframes.
+   */
+  it('keeps replaying the waiting head-cock rather than settling still', () => {
+    vi.useFakeTimers()
+    try {
+      const { container } = renderWithProviders(
+        <PetCastScene agents={[src('slot-a', { waitingForInput: true })]} visible />,
+      )
+      const first = container.querySelector('.kg-anim-curious')
+      expect(first).toBeTruthy()
+      act(() => { vi.advanceTimersByTime(ATTENTION_REPLAY_MS) })
+      const second = container.querySelector('.kg-anim-curious')
+      expect(second).toBeTruthy()
+      expect(second).not.toBe(first)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('runs no replay timer while the scene is hidden', () => {
+    // Nine scenes stay mounted at once and a hidden one draws no avatar, so a timer
+    // bumping an epoch nothing reads would be pure waste.
+    vi.useFakeTimers()
+    try {
+      renderWithProviders(
+        <PetCastScene agents={[src('slot-a', { waitingForInput: true })]} visible={false} />,
+      )
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('labels a failed slot as blocked', () => {
