@@ -823,6 +823,11 @@
         "through_mouth": "मुँह से",
         "through_nose": "नाक से"
       },
+      "cast": {
+        "more_agents_one": "{{count}} और एजेंट चल रहा है",
+        "more_agents_other": "{{count}} और एजेंट चल रहे हैं",
+        "open_in_worlds": "{{name}} को एजेंट वर्ल्ड्स में खोलें"
+      },
       "color": {
         "belly": "पेट",
         "bodyFur": "शरीर / रोएँ",
@@ -966,6 +971,7 @@
       },
       "menu": {
         "change_avatar": "अवतार बदलो",
+        "open_crew_world": "क्रू वर्ल्ड खोलो",
         "quit": "साथी बंद करो"
       },
       "notif": {
@@ -8934,6 +8940,26 @@
       "v": "v"
     },
     "scenes": {
+      "config": {
+        "crew_desc": "आपके एजेंट अपने ही किरदारों के रूप में",
+        "crew_label": "क्रू",
+        "ghost_desc": "टोपी, चश्मे और लबादे पहने Kiro भूत",
+        "ghost_label": "Kiro हॉन्ट",
+        "mission_desc": "NASA ऑप्स सेंटर",
+        "mission_label": "मिशन कंट्रोल",
+        "neural_desc": "तारामंडल मानचित्र",
+        "neural_label": "न्यूरल नेट",
+        "office_desc": "क्लासिक पिक्सेल ऑफिस",
+        "office_label": "ऑफिस",
+        "panda_desc": "बाँस के जंगल का कार्यस्थल, सभी पांडा",
+        "panda_label": "पांडा मांद",
+        "serengeti_desc": "सेरेनगेटी सवाना, जिराफ, वॉर्थोग और हाथियों के साथ",
+        "serengeti_label": "जलस्रोत",
+        "underwater_desc": "पानी के नीचे का स्टेशन",
+        "underwater_label": "गहरी प्रयोगशाला",
+        "wizard_desc": "कीमिया प्रयोगशाला",
+        "wizard_label": "जादूगर मीनार"
+      },
       "ghostScene": {
         "friendly_hauntings_only": "केवल दोस्ताना भूत",
         "kiro_ghost_haunt_animation": "Kiro भूत एनिमेशन",
@@ -8967,6 +8993,15 @@
         "panda_den": "🐼 पांडा अड्डा",
         "panda_office_scene": "पांडा ऑफ़िस दृश्य",
         "panda_office_scene_labels": "पांडा ऑफ़िस दृश्य के लेबल"
+      },
+      "petCastScene": {
+        "blocked": "अवरुद्ध",
+        "idle": "निष्क्रिय",
+        "needs_you": "आपकी ज़रूरत है",
+        "no_agents_right_now": "अभी कोई एजेंट नहीं",
+        "open_session": "{{name}} खोलें",
+        "ready": "तैयार",
+        "working": "काम कर रहा है"
       },
       "underwaterLabScene": {
         "deep_sea_lab": "गहरे समुद्र की लैब",
@@ -10755,6 +10790,7 @@
       "playing_in_popout_window": "पॉपआउट विंडो में चल रहा है",
       "pop_out_to_separate_window": "अलग विंडो में पॉप आउट करें",
       "present": "मौजूद,",
+      "scene_picker": "{{label}} दृश्य: {{desc}}",
       "show_controls": "नियंत्रण दिखाएँ",
       "slot_one": "{{count}} स्लॉट",
       "slot_other": "{{count}} स्लॉट"

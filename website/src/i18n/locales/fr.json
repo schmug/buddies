@@ -848,6 +848,12 @@
         "through_mouth": "par la bouche",
         "through_nose": "par le nez"
       },
+      "cast": {
+        "more_agents_many": "{{count}} agents de plus en cours",
+        "more_agents_one": "{{count}} agent de plus en cours",
+        "more_agents_other": "{{count}} agents de plus en cours",
+        "open_in_worlds": "Ouvrir {{name}} dans Mondes d'agents"
+      },
       "color": {
         "belly": "Ventre",
         "bodyFur": "Corps / Fourrure",
@@ -994,6 +1000,7 @@
       },
       "menu": {
         "change_avatar": "Changer d’avatar",
+        "open_crew_world": "Ouvrir le monde de l’équipage",
         "quit": "Désactiver le compagnon"
       },
       "notif": {
@@ -9044,6 +9051,26 @@
       "v": "v"
     },
     "scenes": {
+      "config": {
+        "crew_desc": "Vos agents en personnages à part entière",
+        "crew_label": "Équipage",
+        "ghost_desc": "Fantômes Kiro en chapeaux, lunettes et capes",
+        "ghost_label": "Manoir Kiro",
+        "mission_desc": "Centre d'opérations de la NASA",
+        "mission_label": "Contrôle de mission",
+        "neural_desc": "Carte de constellations",
+        "neural_label": "Réseau neuronal",
+        "office_desc": "Bureau pixelisé classique",
+        "office_label": "Bureau",
+        "panda_desc": "Espace de travail en forêt de bambous, que des pandas",
+        "panda_label": "Tanière des pandas",
+        "serengeti_desc": "Savane du Serengeti avec girafes, phacochères et éléphants",
+        "serengeti_label": "Point d'eau",
+        "underwater_desc": "Station sous-marine",
+        "underwater_label": "Labo des profondeurs",
+        "wizard_desc": "Laboratoire d'alchimie",
+        "wizard_label": "Tour du magicien"
+      },
       "ghostScene": {
         "friendly_hauntings_only": "hantises amicales uniquement",
         "kiro_ghost_haunt_animation": "Animation du fantôme Kiro",
@@ -9077,6 +9104,15 @@
         "panda_den": "🐼 Repaire des pandas",
         "panda_office_scene": "Scène du bureau des pandas",
         "panda_office_scene_labels": "Étiquettes de la scène du bureau des pandas"
+      },
+      "petCastScene": {
+        "blocked": "Bloqué",
+        "idle": "Inactif",
+        "needs_you": "A besoin de vous",
+        "no_agents_right_now": "Aucun agent pour le moment",
+        "open_session": "Ouvrir {{name}}",
+        "ready": "Prêt",
+        "working": "En cours"
       },
       "underwaterLabScene": {
         "deep_sea_lab": "Laboratoire abyssal",
@@ -10875,6 +10911,7 @@
       "playing_in_popout_window": "Lecture dans la fenêtre détachée",
       "pop_out_to_separate_window": "Détacher dans une fenêtre séparée",
       "present": "présents,",
+      "scene_picker": "Scène {{label}} : {{desc}}",
       "show_controls": "Afficher les commandes",
       "slot_many": "{{count}} emplacements",
       "slot_one": "{{count}} emplacement",

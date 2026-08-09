@@ -798,6 +798,10 @@
         "through_mouth": "用嘴巴",
         "through_nose": "用鼻子"
       },
+      "cast": {
+        "more_agents_other": "还有 {{count}} 个代理在运行",
+        "open_in_worlds": "在代理世界中打开 {{name}}"
+      },
       "color": {
         "belly": "肚子",
         "bodyFur": "身体 / 毛发",
@@ -938,6 +942,7 @@
       },
       "menu": {
         "change_avatar": "更换头像",
+        "open_crew_world": "打开船员世界",
         "quit": "关闭伙伴"
       },
       "notif": {
@@ -8824,6 +8829,26 @@
       "v": "v"
     },
     "scenes": {
+      "config": {
+        "crew_desc": "你的代理化身为自己的角色",
+        "crew_label": "船员",
+        "ghost_desc": "戴帽子、眼镜和披风的 Kiro 幽灵",
+        "ghost_label": "Kiro 鬼屋",
+        "mission_desc": "NASA 指挥中心",
+        "mission_label": "任务控制中心",
+        "neural_desc": "星座图",
+        "neural_label": "神经网络",
+        "office_desc": "经典像素办公室",
+        "office_label": "办公室",
+        "panda_desc": "竹林工作区，全是熊猫",
+        "panda_label": "熊猫小屋",
+        "serengeti_desc": "塞伦盖蒂草原，有长颈鹿、疣猪和大象",
+        "serengeti_label": "水源地",
+        "underwater_desc": "水下研究站",
+        "underwater_label": "深海实验室",
+        "wizard_desc": "炼金实验室",
+        "wizard_label": "巫师塔"
+      },
       "ghostScene": {
         "friendly_hauntings_only": "仅限友好出没",
         "kiro_ghost_haunt_animation": "Kiro 幽灵出没动画",
@@ -8857,6 +8882,15 @@
         "panda_den": "🐼 熊猫窝",
         "panda_office_scene": "熊猫办公室场景",
         "panda_office_scene_labels": "熊猫办公室场景标签"
+      },
+      "petCastScene": {
+        "blocked": "已阻塞",
+        "idle": "空闲",
+        "needs_you": "需要你",
+        "no_agents_right_now": "目前没有代理",
+        "open_session": "打开 {{name}}",
+        "ready": "就绪",
+        "working": "工作中"
       },
       "underwaterLabScene": {
         "deep_sea_lab": "深海实验室",
@@ -10635,6 +10669,7 @@
       "playing_in_popout_window": "正在弹出窗口中播放",
       "pop_out_to_separate_window": "弹出到独立窗口",
       "present": "个在场，",
+      "scene_picker": "{{label}} 场景：{{desc}}",
       "show_controls": "展开控制项",
       "slot_other": "{{count}} 个槽位"
     },

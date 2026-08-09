@@ -798,6 +798,10 @@
         "through_mouth": "口から",
         "through_nose": "鼻から"
       },
+      "cast": {
+        "more_agents_other": "他に {{count}} 個のエージェントが実行中",
+        "open_in_worlds": "{{name}} をエージェントワールドで開く"
+      },
       "color": {
         "belly": "おなか",
         "bodyFur": "体・毛",
@@ -938,6 +942,7 @@
       },
       "menu": {
         "change_avatar": "アバターを変更",
+        "open_crew_world": "クルーワールドを開く",
         "quit": "コンパニオンをオフにする"
       },
       "notif": {
@@ -8824,6 +8829,26 @@
       "v": "v"
     },
     "scenes": {
+      "config": {
+        "crew_desc": "エージェントがそれぞれのキャラクターに",
+        "crew_label": "クルー",
+        "ghost_desc": "帽子・メガネ・マントをまとった Kiro のおばけ",
+        "ghost_label": "Kiro のお化け屋敷",
+        "mission_desc": "NASA の運用センター",
+        "mission_label": "ミッションコントロール",
+        "neural_desc": "星座マップ",
+        "neural_label": "ニューラルネット",
+        "office_desc": "定番のピクセルオフィス",
+        "office_label": "オフィス",
+        "panda_desc": "竹林のワークスペース、みんなパンダ",
+        "panda_label": "パンダの巣",
+        "serengeti_desc": "キリン、イボイノシシ、ゾウのいるセレンゲティのサバンナ",
+        "serengeti_label": "水場",
+        "underwater_desc": "海中ステーション",
+        "underwater_label": "深海ラボ",
+        "wizard_desc": "錬金術の実験室",
+        "wizard_label": "魔法使いの塔"
+      },
       "ghostScene": {
         "friendly_hauntings_only": "友好的な幽霊だけ",
         "kiro_ghost_haunt_animation": "Kiro ゴーストの出没アニメーション",
@@ -8857,6 +8882,15 @@
         "panda_den": "🐼 パンダのすみか",
         "panda_office_scene": "パンダオフィスのシーン",
         "panda_office_scene_labels": "パンダオフィスシーンのラベル"
+      },
+      "petCastScene": {
+        "blocked": "停止中",
+        "idle": "待機中",
+        "needs_you": "対応が必要",
+        "no_agents_right_now": "現在エージェントはいません",
+        "open_session": "{{name}} を開く",
+        "ready": "準備完了",
+        "working": "作業中"
       },
       "underwaterLabScene": {
         "deep_sea_lab": "深海ラボ",
@@ -10635,6 +10669,7 @@
       "playing_in_popout_window": "ポップアウトウィンドウで再生中",
       "pop_out_to_separate_window": "別ウィンドウにポップアウト",
       "present": "在席、",
+      "scene_picker": "{{label}} シーン：{{desc}}",
       "show_controls": "コントロールを表示",
       "slot_other": "{{count}} スロット"
     },

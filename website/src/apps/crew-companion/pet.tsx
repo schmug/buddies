@@ -31,7 +31,11 @@ import { nudgeTextFor } from './nudgeKeys'
 import { PetAvatar, type PetState } from './PetAvatar'
 import { usePlayfulMotion } from './usePlayfulMotion'
 import { petBridge } from './petBridge'
-import { watchSessions } from './sessionWatch'
+import { watchSessions, type SessionWatcher } from './sessionWatch'
+import { deriveCrewStatus } from './crewStatus'
+import { CrewCast, motionPetState, restingPetState, sameCrewView } from './CrewCast'
+import { openCrewWorld } from './openCrewWorld'
+import type { HitRect } from './hitbox'
 import { randomCelebrateProp, type GhostAccessory } from './ghostAccessories'
 
 import { PetContextMenu } from './PetContextMenu'
@@ -53,7 +57,9 @@ import { useEdgeHide } from './useEdgeHide'
 import { useWalking } from './useWalking'
 import { useIdleFidget } from './useIdleFidget'
 import { useRandomClips, type RandomBehaviors } from './useRandomClips'
-import { activeAnimFor, CELEBRATE_MS, CELEBRATE_PROP_HOLD_MS, type PetAnim } from './petAnim'
+import {
+  activeAnimFor, ATTENTION_REPLAY_MS, CELEBRATE_MS, CELEBRATE_PROP_HOLD_MS, type PetAnim,
+} from './petAnim'
 import { ALL_MOODS } from './appearanceTypes'
 
 /** Well inside the backend's 90s presence TTL, so one dropped request is harmless. */
@@ -86,6 +92,23 @@ const PENDING_MS = 2_000
  * is not — so a command only acts while it is fresh.
  */
 const COMMAND_FRESH_MS = 15_000
+
+/**
+ * How often the crew's condition is re-read from the session watcher.
+ *
+ * A PULL rather than a subscription: the watcher owns the socket and answers what
+ * is true at the moment it is asked, so this cadence is only about how quickly a
+ * sprite appears or leaves. A second is under the threshold where a started
+ * session feels unacknowledged, and cheap — the snapshot is a map read.
+ */
+const CREW_POLL_MS = 1_000
+
+/**
+ * How long the companion holds the pose it takes on ARRIVING at a one-shot crew
+ * condition. Matches what the completion path already uses for a broken turn, so a
+ * failure looks the same whether a bubble or the aggregate raised it.
+ */
+const AGGREGATE_ERROR_MS = 2_000
 
 /**
  * The preload bridge. Optional because this same page is openable in an ordinary
@@ -349,6 +372,13 @@ function Companion() {
    */
   const [petState, setPetState] = useState<PetState>('idle')
   const stateTimer = useRef<number | null>(null)
+  /**
+   * The reaction as of this render, for effects that must not re-run when it changes.
+   * The crew-arrival effect below keys on the AGGREGATE and only consults this to
+   * avoid cutting a live reaction short.
+   */
+  const petStateRef = useRef(petState)
+  petStateRef.current = petState
 
   /**
    * A per-reaction counter, bumped every time a fresh reaction is triggered.
@@ -598,125 +628,201 @@ function Companion() {
     }, CELEBRATE_MS + CELEBRATE_PROP_HOLD_MS)
   }, [])
 
-  // The effect's cleanup is the watcher's `stop` half — safe to hand over on its
-  // own because it is a closure over the socket, not a method that reads `this`.
-  useEffect(() => watchSessions({
-    isSilent: () => sessionAlertsRef.current === false,
-    // The backend rang: drain now rather than at the next tick of the poll.
-    onFireQueued: () => pollNowRef.current?.(),
-    onDone: ({ title, failed }) => {
+  /**
+   * The live watcher, held so the crew poll below can read its snapshot.
+   *
+   * A ref rather than state: the handle is not rendered, and putting it in state
+   * would re-render the whole companion the moment the socket opened.
+   */
+  const watcherRef = useRef<SessionWatcher | null>(null)
+
+  useEffect(() => {
+    const watcher = watchSessions({
+      isSilent: () => sessionAlertsRef.current === false,
+      // The backend rang: drain now rather than at the next tick of the poll.
+      onFireQueued: () => pollNowRef.current?.(),
+      onDone: ({ title, failed }) => {
+        /*
+         * A failure is a DIFFERENT notification, not a finish with sad wording.
+         *
+         * The gateway ends a broken turn with an ordinary `chat_done`, so treating
+         * every completion as success meant the companion celebrated work that had
+         * actually stopped. The kind drives the wording, the body reaction, the face
+         * and the CTA, so it has to be decided here.
+         */
+        const kind: NotifKind = failed ? 'session-error' : 'session-done'
+        // A session's title is the user's own words — shown verbatim, never translated.
+        // Only the fallback for an untitled session is copy.
+        /*
+         * A failure has to SAY so.
+         *
+         * On success the session's title stands alone — those are the user's words. On
+         * failure the bare title reads exactly like a finish, so it is prefixed the way
+         * the source prefixes it ("Stopped: <title>"), and an untitled failure gets its
+         * own sentence rather than an empty one.
+         */
+        const named = title.trim()
+        const text = failed
+          ? (named
+            ? i18nT('apps.crewCompanion.notif.stoppedNamed', { name: named })
+            : i18nT('apps.crewCompanion.notif.taskStopped'))
+          : (named || i18nT('apps.crewCompanion.notif.finishedTask'))
+        const now = Date.now()
+        const held = slotRef.current
+        if (held?.sticky && now - held.at < STICKY_HOLD_MS) return
+        const result = nextBubble(
+          slotRef.current, { text, sticky: isSticky(kind), kind }, now,
+        )
+        slotRef.current = result.pending
+        if (result.show === null) return
+        // Local, negative sequence numbers: these bubbles have no backend fire behind
+        // them, and a positive number could collide with a real fire's seq.
+        localSeqRef.current -= 1
+        setBubble({
+          seq: localSeqRef.current,
+          kind: result.pending?.kind ?? kind,
+          text: result.show,
+        })
+        if (failed) {
+          react('error', 2_000)
+          setMood('scared')
+        } else {
+          react('done', 2_400)
+          setMood('happy')
+          celebrateWithProp()
+        }
+      },
       /*
-       * A failure is a DIFFERENT notification, not a finish with sad wording.
+       * A tool is BLOCKED on your OK — raise the sticky approval bubble.
        *
-       * The gateway ends a broken turn with an ordinary `chat_done`, so treating
-       * every completion as success meant the companion celebrated work that had
-       * actually stopped. The kind drives the wording, the body reaction, the face
-       * and the CTA, so it has to be decided here.
+       * This is the producer the page's promise ("anything waiting on you always
+       * notifies") depended on and never had. It is additive: the resolver below
+       * already knew how to CLEAR an approval bubble, so this closes the loop by
+       * creating one.
+       *
+       * Built through the SAME slot path `onDone` uses, so it obeys the one-slot rule
+       * and will not shove aside other unresolved work still holding it. Two things it
+       * does NOT do, on purpose:
+       *   - it never consults `isSilent`: that switch is about session-DONE good news,
+       *     and per notificationPolicy an approval is unresolved work that always
+       *     notifies — `isSticky('approval')` is true, so there is no ✕ and it leaves
+       *     only by being resolved.
+       *   - it reacts with a CURIOUS mood, not the error shake: waiting on you is a
+       *     question, not a failure — the same choice the poll loop makes for
+       *     'approval'/'session-input'.
+       *
+       * The words: the kind label ("Approval Pending") is the kicker and the session's
+       * own title is the body, reusing the existing state.approval_pending string so no
+       * new copy is minted; an untitled session shows the label alone.
        */
-      const kind: NotifKind = failed ? 'session-error' : 'session-done'
-      // A session's title is the user's own words — shown verbatim, never translated.
-      // Only the fallback for an untitled session is copy.
+      onApproval: ({ title }) => {
+        const kind: NotifKind = 'approval'
+        const label = i18nT('apps.crewCompanion.state.approval_pending')
+        const named = title.trim()
+        // "kicker\nbody": Bubble treats a short first line as an upper-case label above
+        // the body, so this reads as "APPROVAL PENDING" over the session's own words.
+        const text = named ? `${label}\n${named}` : label
+        const now = Date.now()
+        const held = slotRef.current
+        if (held?.sticky && now - held.at < STICKY_HOLD_MS) return
+        const result = nextBubble(
+          slotRef.current, { text, sticky: isSticky(kind), kind }, now,
+        )
+        slotRef.current = result.pending
+        if (result.show === null) return
+        // Local, negative sequence: no backend fire sits behind this bubble, and a
+        // positive number could collide with a real fire's seq.
+        localSeqRef.current -= 1
+        setBubble({
+          seq: localSeqRef.current,
+          kind: result.pending?.kind ?? kind,
+          text: result.show,
+        })
+        // Curious, not alarmed: activeAnimFor turns a curious mood into the head-cock.
+        bumpReaction()
+        setMood('curious')
+      },
       /*
-       * A failure has to SAY so.
+       * Blocked work answered elsewhere frees the slot at once.
        *
-       * On success the session's title stands alone — those are the user's words. On
-       * failure the bare title reads exactly like a finish, so it is prefixed the way
-       * the source prefixes it ("Stopped: <title>"), and an untitled failure gets its
-       * own sentence rather than an empty one.
+       * The bubble asked a question; once it is answered in the dashboard the bubble is
+       * stale, and leaving it to the bounded hold means everything behind it waits on
+       * something already decided.
        */
-      const named = title.trim()
-      const text = failed
-        ? (named
-          ? i18nT('apps.crewCompanion.notif.stoppedNamed', { name: named })
-          : i18nT('apps.crewCompanion.notif.taskStopped'))
-        : (named || i18nT('apps.crewCompanion.notif.finishedTask'))
-      const now = Date.now()
-      const held = slotRef.current
-      if (held?.sticky && now - held.at < STICKY_HOLD_MS) return
-      const result = nextBubble(
-        slotRef.current, { text, sticky: isSticky(kind), kind }, now,
-      )
-      slotRef.current = result.pending
-      if (result.show === null) return
-      // Local, negative sequence numbers: these bubbles have no backend fire behind
-      // them, and a positive number could collide with a real fire's seq.
-      localSeqRef.current -= 1
-      setBubble({
-        seq: localSeqRef.current,
-        kind: result.pending?.kind ?? kind,
-        text: result.show,
-      })
-      if (failed) {
-        react('error', 2_000)
-        setMood('scared')
-      } else {
-        react('done', 2_400)
-        setMood('happy')
-        celebrateWithProp()
-      }
-    },
-    /*
-     * A tool is BLOCKED on your OK — raise the sticky approval bubble.
-     *
-     * This is the producer the page's promise ("anything waiting on you always
-     * notifies") depended on and never had. It is additive: the resolver below
-     * already knew how to CLEAR an approval bubble, so this closes the loop by
-     * creating one.
-     *
-     * Built through the SAME slot path `onDone` uses, so it obeys the one-slot rule
-     * and will not shove aside other unresolved work still holding it. Two things it
-     * does NOT do, on purpose:
-     *   - it never consults `isSilent`: that switch is about session-DONE good news,
-     *     and per notificationPolicy an approval is unresolved work that always
-     *     notifies — `isSticky('approval')` is true, so there is no ✕ and it leaves
-     *     only by being resolved.
-     *   - it reacts with a CURIOUS mood, not the error shake: waiting on you is a
-     *     question, not a failure — the same choice the poll loop makes for
-     *     'approval'/'session-input'.
-     *
-     * The words: the kind label ("Approval Pending") is the kicker and the session's
-     * own title is the body, reusing the existing state.approval_pending string so no
-     * new copy is minted; an untitled session shows the label alone.
-     */
-    onApproval: ({ title }) => {
-      const kind: NotifKind = 'approval'
-      const label = i18nT('apps.crewCompanion.state.approval_pending')
-      const named = title.trim()
-      // "kicker\nbody": Bubble treats a short first line as an upper-case label above
-      // the body, so this reads as "APPROVAL PENDING" over the session's own words.
-      const text = named ? `${label}\n${named}` : label
-      const now = Date.now()
-      const held = slotRef.current
-      if (held?.sticky && now - held.at < STICKY_HOLD_MS) return
-      const result = nextBubble(
-        slotRef.current, { text, sticky: isSticky(kind), kind }, now,
-      )
-      slotRef.current = result.pending
-      if (result.show === null) return
-      // Local, negative sequence: no backend fire sits behind this bubble, and a
-      // positive number could collide with a real fire's seq.
-      localSeqRef.current -= 1
-      setBubble({
-        seq: localSeqRef.current,
-        kind: result.pending?.kind ?? kind,
-        text: result.show,
-      })
-      // Curious, not alarmed: activeAnimFor turns a curious mood into the head-cock.
-      bumpReaction()
-      setMood('curious')
-    },
-    /*
-     * Blocked work answered elsewhere frees the slot at once.
-     *
-     * The bubble asked a question; once it is answered in the dashboard the bubble is
-     * stale, and leaving it to the bounded hold means everything behind it waits on
-     * something already decided.
-     */
-    onApprovalResolved: () => {
-      if (slotRef.current?.sticky) slotRef.current = null
-      setBubble((b) => (b && isSticky(b.kind) ? null : b))
-    },
-  }).stop, [react, setMood, celebrateWithProp, bumpReaction])
+      onApprovalResolved: () => {
+        if (slotRef.current?.sticky) slotRef.current = null
+        setBubble((b) => (b && isSticky(b.kind) ? null : b))
+      },
+    })
+    watcherRef.current = watcher
+    return () => {
+      watcherRef.current = null
+      watcher.stop()
+    }
+  }, [react, setMood, celebrateWithProp, bumpReaction])
+
+  /**
+   * The crew's condition, rebuilt from the watcher on a poll.
+   *
+   * The watcher owns the socket; this owns nothing but the derived view of it, so a
+   * reconnect or a dropped gateway needs no handling here — the snapshot goes empty
+   * and the cast empties with it.
+   */
+  const [crew, setCrew] = useState(() => deriveCrewStatus([]))
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      // Keeping the previous object when nothing the desktop draws has changed is
+      // what lets React bail out: the poll runs for the overlay's whole lifetime.
+      const next = deriveCrewStatus(watcherRef.current?.snapshot() ?? [])
+      setCrew((prev) => (sameCrewView(prev, next) ? prev : next))
+    }, CREW_POLL_MS)
+    return () => window.clearInterval(id)
+  }, [])
+
+  /**
+   * React to ARRIVING at a one-shot crew condition, through the same `react()` path a
+   * completion bubble uses rather than a second mechanism.
+   *
+   * A celebration is a reaction to arriving at `ready`, not a property of being
+   * there. Driving it from the held aggregate instead would leave `activeAnimFor`
+   * returning a motion for as long as the condition lasted, and its ambient branch
+   * only surfaces an idle fidget while the state is `idle` — so one
+   * finished-but-unread session would leave the companion inert over a whole crew
+   * still at work, because `ready` outranks `running`. Raising a BOUNDED reaction on
+   * the transition is what lets the aggregate settle back out of the way.
+   */
+  const lastAggregate = useRef(crew.aggregate)
+  useEffect(() => {
+    const previous = lastAggregate.current
+    lastAggregate.current = crew.aggregate
+    if (crew.aggregate === previous) return
+    // A live reaction already says this, and restarting it would cut it short.
+    if (petStateRef.current !== 'idle') return
+    if (crew.aggregate === 'ready') react('done', CELEBRATE_MS)
+    else if (crew.aggregate === 'blocked') react('error', AGGREGATE_ERROR_MS)
+  }, [crew.aggregate, react])
+
+  /**
+   * Replay the head-cock while it is what is showing.
+   *
+   * The epoch bump is the same remount the file uses for every repeated motion; the
+   * ref is set during render (like `playActiveRef` and `facingRightRef`) so this
+   * interval always sees the current frame's motion and never restarts anything else.
+   *
+   * The held `needs-input` aggregate is what gets the replays in practice. The other
+   * route to a head-cock is a transient `curious` mood, and `useMood` clears one well
+   * inside this interval, so it never survives to a second turn.
+   */
+  const cockingRef = useRef(false)
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (cockingRef.current) bumpReaction()
+    }, ATTENTION_REPLAY_MS)
+    return () => window.clearInterval(id)
+  }, [bumpReaction])
+
+  /** Cast-sprite rects, reported up from CrewCast for the hitbox forwarder. */
+  const [castRects, setCastRects] = useState<HitRect[]>([])
 
   /** Presence: silence is read as "nobody is there", so this must not stop. */  useEffect(() => {
     void post(PRESENCE_PATH)
@@ -928,17 +1034,45 @@ function Companion() {
     useWalking(pos, setPos, handleWalkEnd, setIsPeeking, setHideEdge)
 
   /**
+   * The OS's reduced-motion preference, SUBSCRIBED rather than read at render.
+   *
+   * A render-time read only refreshes when something else happens to re-render the
+   * companion, and this overlay can stay mounted for days — so turning the setting
+   * on would leave the companion wandering for an unbounded time. The query is the
+   * same one `usePlayfulMotion` watches for the continuous bob.
+   */
+  const [reducedMotion, setReducedMotion] = useState(
+    () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false,
+  )
+  useEffect(() => {
+    const mq = window.matchMedia?.('(prefers-reduced-motion: reduce)')
+    if (!mq) return
+    const onChange = () => setReducedMotion(mq.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+
+  /**
+   * The state the companion's MOTION comes from, as opposed to its art.
+   *
+   * Computed here rather than beside `activeAnim` because the idle-fidget gate below
+   * needs it: `activeAnimFor` only surfaces a fidget while the motion state is
+   * `idle`, so a companion carrying the crew's own motion would take a fidget,
+   * consume its turn from the pool, and silently play nothing.
+   */
+  const motionState = motionPetState(crew.aggregate, petState)
+
+  /**
    * Everything that must be quiet for the companion to move on its own, evaluated at
    * render (each is state-backed, so a change re-renders and refreshes the gate). A
    * fidget never begins while the user is dragging, the companion is walking or
-   * docked, the quick-menu is up, or the OS asks for reduced motion — matching how
-   * the desktop app gated useIdleFidget, plus the reduced-motion honour.
+   * docked, the quick-menu is up, the OS asks for reduced motion, or the crew's own
+   * condition is already moving the body — matching how the desktop app gated
+   * useIdleFidget, plus the reduced-motion honour.
    */
-  const reducedMotion =
-    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
   const settled =
     posReady && !dragging.current && !isWalking && !isPeeking &&
-    menuAt === null && !reducedMotion
+    menuAt === null && !reducedMotion && motionState === 'idle'
 
   // Built-in ghost: small in-place hop / brief mood flicker.
   /*
@@ -1009,13 +1143,13 @@ function Companion() {
     playExtra: playExtraClip,
   })
 
-  // Report the companion's and bubble's hitboxes to the main process; it polls the
-  // cursor at ~60fps and toggles this overlay's click-through itself. The context
-  // menu reports its own rect separately (PetContextMenu → petBridge.setMenuHitbox).
-  // `placement` is null until the bubble is measured, so the bubble rect is reported
-  // once it lands. Cast-sprite rects are part of the same contract but are not sent
-  // from here, so these reports declare an empty cast.
-  useMouseForward({ pos, bubbleRect: placement?.rect ?? null, dragging })
+  // Report the companion's, bubble's and cast's hitboxes to the main process; it
+  // polls the cursor at ~60fps and toggles this overlay's click-through itself. The
+  // context menu reports its own rect separately (PetContextMenu →
+  // petBridge.setMenuHitbox). `placement` is null until the bubble is measured, so
+  // the bubble rect is reported once it lands. This is the ONLY caller: a second one
+  // that omitted `cast` would clear the sprites' rects and make them click-through.
+  useMouseForward({ pos, bubbleRect: placement?.rect ?? null, dragging, cast: castRects })
 
   // Playful motion runs only when the companion is settled — not while it is being
   // dragged, walking, or docked at an edge. Set every render so the rAF loop sees
@@ -1035,21 +1169,50 @@ function Companion() {
   facingRightRef.current = facingRight
 
   /**
+   * What the companion is wearing: its own reaction when it has one, otherwise the
+   * crew's aggregate condition. A reaction is a specific event and outranks the
+   * ambient status underneath it (see restingPetState).
+   */
+  const shownState = restingPetState(crew.aggregate, petState)
+
+  /**
    * Which body motion is playing, by the desktop app's own precedence:
-   * error > celebrate > curious > fly > ponder (see petAnim). Only the live pet can
-   * decide this — the choice depends on travelling, mood and docking, none of which a
-   * bare state expresses, which is why it is computed here and handed to PetAvatar.
+   * error > celebrate > curious > fly > needs-input > ponder (see petAnim). Only the
+   * live pet can decide this — the choice depends on travelling, mood and docking,
+   * none of which a bare state expresses, which is why it is computed here and handed
+   * to PetAvatar. It reads `motionState`, not `shownState`: the ART may hold a pose
+   * indefinitely, the KEYFRAMES may not.
    */
   const activeAnim = activeAnimFor({
-    state: petState,
+    state: motionState,
     mood,
     docked: hideEdge !== null,
     walking: isWalking,
     idleAnim,
   })
 
+  // Set every render, so the replay interval sees the current frame's motion. Under
+  // reduced motion `.kg-anim-curious` is `animation: none`, so a replay would remount
+  // the node for nothing.
+  cockingRef.current = activeAnim === 'curious' && !reducedMotion
+
   return (
     <div className="cc-pet-layer">
+      {/*
+        FIRST in the layer, so the cast paints beneath the companion, its bubble and
+        the menu — the sprites are context for the companion, never over it. Each
+        sprite opts back in to pointer events itself, like `.cc-pet` does; the layer
+        stays click-through.
+      */}
+      <CrewCast
+        ready={posReady}
+        cast={crew.cast}
+        overflow={crew.overflow}
+        petPos={pos}
+        onSelect={openCrewWorld}
+        onRects={setCastRects}
+      />
+
       {menuAt ? (
         <div className="cc-menu-host">
           <PetContextMenu
@@ -1192,7 +1355,7 @@ function Companion() {
         >
           <PetAvatar
             size={PET_PX}
-            state={petState}
+            state={shownState}
             mood={mood}
             docked={hideEdge !== null}
             anim={activeAnim}
