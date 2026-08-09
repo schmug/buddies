@@ -494,10 +494,12 @@ function Companion() {
   /**
    * Follow the panel window's own lifecycle.
    *
-   * It closes on click-away, Escape and its ✕ without going through `closePanel`, so
-   * without this the companion keeps believing the panel is open: the next click reads
-   * as "close" and nothing appears, and the overlay stays focusable — a full-display
-   * always-on-top window that can take focus and swallow clicks meant for other apps.
+   * It closes on Escape and on its own ✕, both handled INSIDE the panel's window and
+   * so never through `closePanel`. Without this notification the companion keeps
+   * believing the panel is open: the next click reads as "close" and nothing appears,
+   * and the overlay stays focusable — a full-display always-on-top window that can
+   * take focus and swallow clicks meant for other apps. It does NOT close on
+   * click-away; dismissing it is always deliberate.
    */
   useEffect(() => {
     return window.crewCompanion?.onPanelClosed?.(() => {

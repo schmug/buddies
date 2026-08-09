@@ -40,10 +40,10 @@ type Preload = {
   /**
    * Report the context menu's rect while it is open, or null when it closes.
    *
-   * The overlay is click-through everywhere except the reported hitboxes, so the
-   * menu's own rect is added as one — making the menu clickable while the rest of
-   * the desktop stays click-through. This replaces the old hack of making the whole
-   * window interactive for the menu's lifetime.
+   * The overlay is click-through everywhere except the reported hitboxes, and while
+   * the menu is up the reported rect is the WHOLE viewport — a click just outside the
+   * menu has to reach this page for the close-on-outside listener to fire at all.
+   * Null on close returns the overlay to click-through.
    */
   setMenuHitbox?(rect: { x: number; y: number; w: number; h: number } | null): void
   contextMenuAction?(action: string): void
@@ -123,10 +123,11 @@ export interface PetBridge {
   /**
    * Report the context menu's rect while it is open, or null when it closes.
    *
-   * The overlay is click-through except over the reported hitboxes, so the menu's
-   * rect is reported as one and the cursor poll makes the menu region interactive.
-   * Everything else stays click-through — no more making the whole window
-   * interactive for the menu's lifetime.
+   * `ContextMenu.tsx` reports the full viewport here for as long as the menu is
+   * open, so the cursor poll accepts every click while it is up; a rect covering
+   * only the menu's box would forward an outside click to the desktop and leave the
+   * menu with no way to be dismissed. Unlike `updateHitbox` above this one is merged
+   * with the companion/bubble/cast rects rather than replacing them.
    */
   setMenuHitbox?: (rect: { x: number; y: number; w: number; h: number } | null) => void
   /** The full reminder list, for the panel's "see all" view. */
