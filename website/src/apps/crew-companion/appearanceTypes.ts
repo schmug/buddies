@@ -26,21 +26,23 @@ export const REQUIRED_STATES = ['idle'] as const
  * "what a pack shows" can't drift apart (they had: the editor asked for Busy/Error/
  * Offline while the app also wanted done and loading art it never requested).
  *
- *   STATUS  — reactions driven by what the agent is doing: a turn finished, a turn
- *             failed, a turn is running, a turn is waiting on the user.
+ *   STATUS  — reactions driven by what the agent is doing. One line per entry of
+ *             STATUS_STATES, and no more: a turn finished (`done`), a turn failed
+ *             (`error`), a turn is blocked on the user (`needsInput`).
  *   RANDOM  — spontaneous behaviour the pet plays on its own, plus any clips the
  *             author names themselves.
  *
- * `thinking` / `working` are kept as legacy aliases of `loading` so packs authored
- * before this split keep working; they're not offered as slots any more.
+ * A turn RUNNING is a real signal but deliberately not a slot: `loading` and its
+ * `thinking` / `working` aliases sit in LEGACY_STATES so packs authored before the
+ * split keep working, and the editor no longer offers them. Enumerate this list
+ * against the array, never against the signals — counting the unoffered one is how
+ * the previous version of this comment came to promise three slots for two.
  *
- * `needsInput` is the pet's FOURTH status signal — after a turn finishing, failing,
- * and running — and the only one the agent cannot clear by itself: work is blocked
- * on the user, for an approval to grant or a question to answer.
- *
- * Optional like every other slot. A pack that omits it falls back through the
+ * `needsInput` is the newest of the three, and the only one the agent cannot clear by
+ * itself: work is blocked on the user, for an approval to grant or a question to
+ * answer. Optional like the rest — a pack that omits it falls back through the
  * resolver, so every pack authored before this slot existed keeps working and simply
- * holds its earlier body while the bubble carries the message. Only `idle` is in
+ * holds its idle body while the bubble carries the message. Only `idle` is in
  * REQUIRED_STATES, so nothing here can invalidate an existing manifest.
  */
 export const STATUS_STATES = ['done', 'error', 'needsInput'] as const

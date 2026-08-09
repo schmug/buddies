@@ -28,6 +28,7 @@ const STATE_LABEL_KEY = {
   hiding: 'apps.crewCompanion.state.hiding',
   idle: 'apps.crewCompanion.state.idle',
   listening: 'apps.crewCompanion.state.listening',
+  needsInput: 'apps.crewCompanion.state.needsInput',
   offline: 'apps.crewCompanion.state.offline',
   peekThinking: 'apps.crewCompanion.state.peekThinking',
   peeking: 'apps.crewCompanion.state.peeking',

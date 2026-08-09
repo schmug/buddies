@@ -65,8 +65,23 @@ const STATE_TO_SLOT: Record<PetState, PackSlot> = {
   exhale: 'exhale',
 }
 
-/** Slots whose only sensible fallback is idle — never the busy aliases. */
-const BREATHING_SLOTS = new Set<PackSlot>(['inhale', 'hold', 'exhale'])
+/**
+ * Slots whose only sensible fallback is idle — never the busy aliases.
+ *
+ * The breathing phases are here because a pack with no `inhale` should show its calm
+ * body, not the art it drew for "working".
+ *
+ * `needsInput` is here for a sharper reason. The ordinary chain ends in the legacy
+ * busy aliases, which is tolerable for `done` because that state is TRANSIENT — a
+ * wrong frame shows for the length of a hop. Blocked-on-you is held until a human
+ * acts, so a wrong frame shows for minutes, and the wrong frame is the worst one
+ * available: imported packs routinely carry `thinking` art (which is why it is in
+ * LEGACY_STATES), so the busy chain would render a working body at exactly the moment
+ * the user has to be told that nothing is progressing. They read "still working",
+ * never approve, and the agent stalls — the failure this signal exists to prevent.
+ * Idle-vs-busy is a real visual distinction; busy-vs-busy is none.
+ */
+const IDLE_ONLY_FALLBACK_SLOTS = new Set<PackSlot>(['needsInput', 'inhale', 'hold', 'exhale'])
 
 /**
  * The motion a bare state implies, for surfaces that just hand us a state (the
@@ -241,8 +256,8 @@ export const PetAvatar: React.FC<PetAvatarProps> = ({
       // and `working` mean the same thing as `loading` for packs authored before
       // the status/random split.
       //
-      // Breathing phases skip the busy aliases: a pack with no `inhale` should show
-      // its calm idle body, not the art it drew for "working".
+      // IDLE_ONLY_FALLBACK_SLOTS skip the busy aliases and go straight to idle —
+      // see the rationale on that constant.
       const a = detail.animations
       /*
        * A requested clip outranks the state slot — it IS the reason we are
@@ -251,7 +266,7 @@ export const PetAvatar: React.FC<PetAvatarProps> = ({
        */
       const entry = clipName
         ? (a[clipName] || a.idle)
-        : BREATHING_SLOTS.has(slot)
+        : IDLE_ONLY_FALLBACK_SLOTS.has(slot)
           ? (a[slot] || a.idle)
           : (a[slot] || a.loading || a.thinking || a.working || a.idle)
       if (!entry) return
