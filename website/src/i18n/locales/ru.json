@@ -9156,6 +9156,26 @@
       "v": "v"
     },
     "scenes": {
+      "config": {
+        "crew_desc": "Ваши агенты в виде собственных персонажей",
+        "crew_label": "Команда",
+        "ghost_desc": "Призраки Kiro в шляпах, очках и плащах",
+        "ghost_label": "Особняк Kiro",
+        "mission_desc": "Оперативный центр NASA",
+        "mission_label": "Центр управления",
+        "neural_desc": "Карта созвездий",
+        "neural_label": "Нейросеть",
+        "office_desc": "Классический пиксельный офис",
+        "office_label": "Офис",
+        "panda_desc": "Рабочее место в бамбуковом лесу, сплошь панды",
+        "panda_label": "Логово панд",
+        "serengeti_desc": "Саванна Серенгети с жирафами, бородавочниками и слонами",
+        "serengeti_label": "Водопой",
+        "underwater_desc": "Подводная станция",
+        "underwater_label": "Глубинная лаборатория",
+        "wizard_desc": "Алхимическая лаборатория",
+        "wizard_label": "Башня мага"
+      },
       "ghostScene": {
         "friendly_hauntings_only": "только дружелюбные призраки",
         "kiro_ghost_haunt_animation": "Анимация призрака Kiro",
@@ -9189,6 +9209,15 @@
         "panda_den": "🐼 Логово панды",
         "panda_office_scene": "Сцена офиса панд",
         "panda_office_scene_labels": "Подписи сцены офиса панд"
+      },
+      "petCastScene": {
+        "blocked": "Заблокирован",
+        "idle": "Простой",
+        "needs_you": "Нужны вы",
+        "no_agents_right_now": "Сейчас нет агентов",
+        "open_session": "Открыть {{name}}",
+        "ready": "Готово",
+        "working": "В работе"
       },
       "underwaterLabScene": {
         "deep_sea_lab": "Глубоководная лаборатория",
@@ -10996,6 +11025,7 @@
       "playing_in_popout_window": "Воспроизводится в отдельном окне",
       "pop_out_to_separate_window": "Открыть в отдельном окне",
       "present": "присутствует,",
+      "scene_picker": "Сцена «{{label}}»: {{desc}}",
       "show_controls": "Показать управление",
       "slot_few": "{{count}} слота",
       "slot_many": "{{count}} слотов",

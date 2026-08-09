@@ -45,6 +45,33 @@ test.describe('Builtin App Route resolution', () => {
     await expect(page.getByTestId('collapse-panel')).toBeVisible({ timeout: 10000 })
   })
 
+  test('/worlds crew scene renders as live DOM', async ({ page }) => {
+    await page.goto('/worlds', { waitUntil: 'domcontentloaded' })
+    const crewTab = page.getByRole('button', { name: /^Crew scene:/ })
+    await expect(crewTab).toBeVisible({ timeout: 10000 })
+    await crewTab.click()
+    // The crew scene is the one scene that draws no pixels — it renders the same
+    // appearance packs the desktop pet uses — so its container must be live DOM,
+    // and selecting it must clear the paused flag that gates its animation.
+    const scene = page.getByTestId('crew-scene')
+    await expect(scene).toBeVisible({ timeout: 10000 })
+    await expect(scene).toHaveAttribute('data-scene-paused', 'false')
+    await expect(crewTab).toHaveAttribute('aria-pressed', 'true')
+    // No pixels: every other scene paints into a <canvas>, and this one must not.
+    await expect(scene.locator('canvas')).toHaveCount(0)
+    /*
+     * Slot count is NOT a fixture this spec controls. One gateway serves the whole
+     * run on a single KIROCREW_HOME with no per-file reset, workers is 1, and
+     * `active-slot-persistence.spec.ts` sorts earlier and seeds chat slots additively
+     * — so by the time this runs the crew may hold characters or be empty. Assert the
+     * disjunction, which is true either way and still fails on a scene that rendered
+     * nothing at all.
+     */
+    const characters = scene.getByRole('button', { name: /^Open / })
+    const emptyState = scene.getByText('No agents right now')
+    await expect(characters.first().or(emptyState)).toBeVisible({ timeout: 10000 })
+  })
+
   // ── /channels — ChannelPage ───────────────────────────────────────────────
 
   test('/channels renders Channels page with empty state', async ({ page }) => {

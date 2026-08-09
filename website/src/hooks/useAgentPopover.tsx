@@ -118,9 +118,12 @@ export function useAgentPopover(
   const sourcesRef = useRef<AgentSource[] | undefined>(sources)
   sourcesRef.current = sources
   const popoverRef = useRef<HTMLDivElement | null>(null)
-  // The element the caller hit-tests. A pointerdown on it must NOT dismiss the
-  // popover: the caller's own click handler owns the open/close toggle, and
-  // dismissing first would turn a second click on the same agent into a reopen.
+  // The element the caller hit-tests. A pointerdown on it — or on anything inside
+  // it — must NOT dismiss the popover: the caller's own click handler owns the
+  // open/close toggle, and dismissing first would turn a second click on the same
+  // agent into a reopen. Containment rather than identity, because a DOM scene's
+  // anchor has children and the pointerdown lands on one of them; a canvas has none,
+  // so `Node.contains` (which is inclusive of the node itself) leaves it unchanged.
   const anchorRef = useRef<Element | null>(null)
 
   const hover = useCallback((agent: SceneAgent, at: { x: number; y: number }) => {
@@ -166,7 +169,7 @@ export function useAgentPopover(
     if (!threadView) return
     const onPointerDown = (ev: PointerEvent) => {
       const el = popoverRef.current
-      if (el && ev.target instanceof Node && !el.contains(ev.target) && ev.target !== anchorRef.current) {
+      if (el && ev.target instanceof Node && !el.contains(ev.target) && !anchorRef.current?.contains(ev.target)) {
         setThreadView(null)
       }
     }
