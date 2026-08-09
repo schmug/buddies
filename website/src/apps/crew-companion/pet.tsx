@@ -33,7 +33,7 @@ import { usePlayfulMotion } from './usePlayfulMotion'
 import { petBridge } from './petBridge'
 import { watchSessions, type SessionWatcher } from './sessionWatch'
 import { deriveCrewStatus } from './crewStatus'
-import { CrewCast, restingPetState, sameCrewView } from './CrewCast'
+import { CrewCast, motionPetState, restingPetState, sameCrewView } from './CrewCast'
 import { openCrewWorld } from './openCrewWorld'
 import type { HitRect } from './hitbox'
 import { randomCelebrateProp, type GhostAccessory } from './ghostAccessories'
@@ -100,6 +100,29 @@ const COMMAND_FRESH_MS = 15_000
  * session feels unacknowledged, and cheap — the snapshot is a map read.
  */
 const CREW_POLL_MS = 1_000
+
+/**
+ * How long the companion holds the pose it takes on ARRIVING at a one-shot crew
+ * condition. Matches what the completion path already uses for a broken turn, so a
+ * failure looks the same whether a bubble or the aggregate raised it.
+ */
+const AGGREGATE_ERROR_MS = 2_000
+
+/**
+ * How often the head-cock replays while an agent is waiting on the user.
+ *
+ * `.kg-anim-curious` is a 2s one-shot that ends back at neutral, and this is the only
+ * condition that persists until a person acts — so without a replay the companion
+ * goes still for the one thing that exists to be noticed. Well above the keyframe's
+ * own length, so it reads as a periodic glance rather than a twitch.
+ *
+ * NEAR-DEAD until the aggregate routes `needs-input` to its own pack slot: the only
+ * head-cock reachable today comes from `mood === 'curious'`, and `useMood` clears a
+ * transient mood well inside this interval, so the replay never gets a second turn.
+ * It starts doing work on the same one-line repoint that wakes the `needs-input`
+ * branch in `activeAnimFor` — no change is needed here.
+ */
+const ATTENTION_REPLAY_MS = 8_000
 
 /**
  * The preload bridge. Optional because this same page is openable in an ordinary
@@ -363,6 +386,13 @@ function Companion() {
    */
   const [petState, setPetState] = useState<PetState>('idle')
   const stateTimer = useRef<number | null>(null)
+  /**
+   * The reaction as of this render, for effects that must not re-run when it changes.
+   * The crew-arrival effect below keys on the AGGREGATE and only consults this to
+   * avoid cutting a live reaction short.
+   */
+  const petStateRef = useRef(petState)
+  petStateRef.current = petState
 
   /**
    * A per-reaction counter, bumped every time a fresh reaction is triggered.
@@ -763,6 +793,44 @@ function Companion() {
     return () => window.clearInterval(id)
   }, [])
 
+  /**
+   * React to ARRIVING at a one-shot crew condition, through the same `react()` path a
+   * completion bubble uses rather than a second mechanism.
+   *
+   * A celebration is a reaction to arriving at `ready`, not a property of being
+   * there. Driving it from the held aggregate instead would leave `activeAnimFor`
+   * returning a motion for as long as the condition lasted, and its ambient branch
+   * only surfaces an idle fidget while the state is `idle` — so one
+   * finished-but-unread session would leave the companion inert over a whole crew
+   * still at work, because `ready` outranks `running`. Raising a BOUNDED reaction on
+   * the transition is what lets the aggregate settle back out of the way.
+   */
+  const lastAggregate = useRef(crew.aggregate)
+  useEffect(() => {
+    const previous = lastAggregate.current
+    lastAggregate.current = crew.aggregate
+    if (crew.aggregate === previous) return
+    // A live reaction already says this, and restarting it would cut it short.
+    if (petStateRef.current !== 'idle') return
+    if (crew.aggregate === 'ready') react('done', CELEBRATE_MS)
+    else if (crew.aggregate === 'blocked') react('error', AGGREGATE_ERROR_MS)
+  }, [crew.aggregate, react])
+
+  /**
+   * Replay the head-cock while it is what is showing.
+   *
+   * The epoch bump is the same remount the file uses for every repeated motion; the
+   * ref is set during render (like `playActiveRef` and `facingRightRef`) so this
+   * interval always sees the current frame's motion and never restarts anything else.
+   */
+  const cockingRef = useRef(false)
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (cockingRef.current) bumpReaction()
+    }, ATTENTION_REPLAY_MS)
+    return () => window.clearInterval(id)
+  }, [bumpReaction])
+
   /** Cast-sprite rects, reported up from CrewCast for the hitbox forwarder. */
   const [castRects, setCastRects] = useState<HitRect[]>([])
 
@@ -995,15 +1063,26 @@ function Companion() {
   }, [])
 
   /**
+   * The state the companion's MOTION comes from, as opposed to its art.
+   *
+   * Computed here rather than beside `activeAnim` because the idle-fidget gate below
+   * needs it: `activeAnimFor` only surfaces a fidget while the motion state is
+   * `idle`, so a companion carrying the crew's own motion would take a fidget,
+   * consume its turn from the pool, and silently play nothing.
+   */
+  const motionState = motionPetState(crew.aggregate, petState)
+
+  /**
    * Everything that must be quiet for the companion to move on its own, evaluated at
    * render (each is state-backed, so a change re-renders and refreshes the gate). A
    * fidget never begins while the user is dragging, the companion is walking or
-   * docked, the quick-menu is up, or the OS asks for reduced motion — matching how
-   * the desktop app gated useIdleFidget, plus the reduced-motion honour.
+   * docked, the quick-menu is up, the OS asks for reduced motion, or the crew's own
+   * condition is already moving the body — matching how the desktop app gated
+   * useIdleFidget, plus the reduced-motion honour.
    */
   const settled =
     posReady && !dragging.current && !isWalking && !isPeeking &&
-    menuAt === null && !reducedMotion
+    menuAt === null && !reducedMotion && motionState === 'idle'
 
   // Built-in ghost: small in-place hop / brief mood flicker.
   /*
@@ -1108,17 +1187,24 @@ function Companion() {
 
   /**
    * Which body motion is playing, by the desktop app's own precedence:
-   * error > celebrate > curious > fly > ponder (see petAnim). Only the live pet can
-   * decide this — the choice depends on travelling, mood and docking, none of which a
-   * bare state expresses, which is why it is computed here and handed to PetAvatar.
+   * error > celebrate > curious > fly > needs-input > ponder (see petAnim). Only the
+   * live pet can decide this — the choice depends on travelling, mood and docking,
+   * none of which a bare state expresses, which is why it is computed here and handed
+   * to PetAvatar. It reads `motionState`, not `shownState`: the ART may hold a pose
+   * indefinitely, the KEYFRAMES may not.
    */
   const activeAnim = activeAnimFor({
-    state: shownState,
+    state: motionState,
     mood,
     docked: hideEdge !== null,
     walking: isWalking,
     idleAnim,
   })
+
+  // Set every render, so the replay interval sees the current frame's motion. Under
+  // reduced motion `.kg-anim-curious` is `animation: none`, so a replay would remount
+  // the node for nothing.
+  cockingRef.current = activeAnim === 'curious' && !reducedMotion
 
   return (
     <div className="cc-pet-layer">
@@ -1129,6 +1215,7 @@ function Companion() {
         stays click-through.
       */}
       <CrewCast
+        ready={posReady}
         cast={crew.cast}
         overflow={crew.overflow}
         petPos={pos}

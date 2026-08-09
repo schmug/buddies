@@ -151,4 +151,106 @@ describe('pet.tsx wiring', () => {
   it('honours reduced motion at the gate', () => {
     expect(SOURCE).toContain('prefers-reduced-motion')
   })
+
+  it('SUBSCRIBES to the reduced-motion query rather than reading it once', () => {
+    // Read at render, the preference only refreshes when something else re-renders
+    // the companion — and this overlay stays mounted for days.
+    expect(SOURCE).toContain("window.matchMedia?.('(prefers-reduced-motion: reduce)')")
+    expect(SOURCE).toContain("mq.addEventListener('change', onChange)")
+    expect(SOURCE).toContain("mq.removeEventListener('change', onChange)")
+  })
+})
+
+// ── the desktop cast, wired into the same page ──────────────────────────────
+// The same cheap oracle, for the wiring `tsc` can type-check but not place: DOM
+// ORDER inside the layer, which props reach the component, and that the poll keeps
+// its bail-out. pet.tsx is a page ENTRY — it calls createRoot at import — so nothing
+// can render <Companion/> and assert on the result.
+
+describe('pet.tsx cast wiring', () => {
+  const SOURCE = readFileSync(
+    resolve(__dirname, '../apps/crew-companion/pet.tsx'),
+    'utf-8',
+  )
+
+  it('renders the cast FIRST inside cc-pet-layer, beneath everything else', () => {
+    // The stacking order is DOM order and nothing else: pet.html declares no
+    // z-index for these, and the context menu self-elevates to 99999. A cast moved
+    // below the bubble or the companion would paint over them.
+    const layer = SOURCE.indexOf('className="cc-pet-layer"')
+    const cast = SOURCE.indexOf('<CrewCast', layer)
+    expect(layer).toBeGreaterThan(-1)
+    expect(cast).toBeGreaterThan(-1)
+    for (const later of ['cc-menu-host', 'cc-bubble-host', 'className="cc-pet"']) {
+      expect(SOURCE.indexOf(later, layer)).toBeGreaterThan(cast)
+    }
+  })
+
+  it('holds the cast back until the companion position has loaded', () => {
+    // The same gate `.cc-pet` uses for its opacity. Without it the first poll paints
+    // sprites — and reports their hitboxes — in the default corner.
+    expect(SOURCE).toContain('ready={posReady}')
+  })
+
+  it('passes the derived cast, its overflow, and the companion position', () => {
+    expect(SOURCE).toContain('cast={crew.cast}')
+    expect(SOURCE).toContain('overflow={crew.overflow}')
+    expect(SOURCE).toContain('petPos={pos}')
+  })
+
+  it('opens the crew world when a sprite is chosen', () => {
+    expect(SOURCE).toContain('onSelect={openCrewWorld}')
+  })
+
+  it('forwards the cast rects on the one hitbox reporting path', () => {
+    // A report that omits the cast clears it, so this argument is what keeps the
+    // sprites clickable at all.
+    expect(SOURCE).toContain('onRects={setCastRects}')
+    expect(SOURCE).toMatch(/useMouseForward\(\{[^}]*cast: castRects/)
+  })
+
+  it('bails out of the crew poll when nothing the desktop draws has changed', () => {
+    // Without this the interval hands React a fresh object every tick and the
+    // companion re-renders for its whole lifetime with nothing on screen changing.
+    expect(SOURCE).toContain('CREW_POLL_MS')
+    expect(SOURCE).toContain('sameCrewView(prev, next) ? prev : next')
+  })
+
+  it('keeps the watcher handle so the poll has a snapshot to read', () => {
+    expect(SOURCE).toContain('watcherRef.current = watcher')
+    expect(SOURCE).toContain('watcherRef.current?.snapshot()')
+    // The teardown must still stop the socket, not just drop the ref.
+    expect(SOURCE).toContain('watcher.stop()')
+  })
+
+  it('drives the companion pose from the aggregate, under its own reactions', () => {
+    expect(SOURCE).toContain('restingPetState(crew.aggregate, petState)')
+    expect(SOURCE).toContain('state={shownState}')
+  })
+
+  it('takes the MOTION from motionPetState, not from the held art', () => {
+    // A one-shot keyframe driven by a state that persists holds its end frame; the
+    // art may sit in a pose indefinitely, the keyframes may not.
+    expect(SOURCE).toContain('motionPetState(crew.aggregate, petState)')
+    expect(SOURCE).toMatch(/activeAnimFor\(\{\s*\n\s*state: motionState,/)
+  })
+
+  it('celebrates ARRIVING at ready through the same react() a completion uses', () => {
+    expect(SOURCE).toContain("if (crew.aggregate === 'ready') react('done', CELEBRATE_MS)")
+    expect(SOURCE).toContain("react('error', AGGREGATE_ERROR_MS)")
+    // Never restart a reaction the companion is already playing.
+    expect(SOURCE).toContain("if (petStateRef.current !== 'idle') return")
+  })
+
+  it('replays the head-cock while an agent waits on the user', () => {
+    expect(SOURCE).toContain('ATTENTION_REPLAY_MS')
+    expect(SOURCE).toContain('if (cockingRef.current) bumpReaction()')
+    expect(SOURCE).toContain("cockingRef.current = activeAnim === 'curious' && !reducedMotion")
+  })
+
+  it('stops idle fidgets while the crew is already moving the body', () => {
+    // activeAnimFor only surfaces a fidget while the motion state is idle, so without
+    // this the fidget would consume its turn from the pool and play nothing.
+    expect(SOURCE).toContain("motionState === 'idle'")
+  })
 })

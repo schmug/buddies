@@ -73,7 +73,7 @@ export interface AnimInputs {
 }
 
 /**
- * Priority: error > celebrate > curious > fly > ponder.
+ * Priority: error > celebrate > curious > fly > needs-input > ponder.
  *
  * Breathing phases fall through to `null` on purpose: the breathing overlay drives
  * the scale itself, and a second animation would fight the phase timing.
@@ -108,6 +108,24 @@ export function activeAnimFor({ state, mood, docked = false, walking = false, id
   if (mood === 'happy' && !docked) return 'celebrate'
   if (mood === 'curious' && !docked) return 'curious'
   if (walking && !docked) return 'fly'
+  /*
+   * Waiting on the user gets the SAME head-cock the curious mood selects, so the two
+   * can never fight over one body. It sits below error and celebrate because those
+   * are events and this is a resting condition, and above `loading` because a turn
+   * blocked on a human outranks one that is merely busy.
+   *
+   * DORMANT until the companion's aggregate maps `needs-input` to its own pack slot:
+   * `CrewCast.AGGREGATE_TO_PET` routes it to `loading`, so the state reaching here is
+   * `loading` and the companion ponder-loops exactly as it does for a merely-busy
+   * crew. `AnimInputs.state` is a `string`, so nothing type-checks that gap shut —
+   * the branch is pre-staged so the repoint stays a one-line data change.
+   *
+   * `kg-curious` is a 2000ms one-shot that ends back at neutral, and this is the only
+   * state that persists until a person acts — so once it IS reachable, a caller that
+   * holds it must replay the keyframes (bump `animEpoch`) or the companion goes still
+   * for the one condition that exists to be noticed.
+   */
+  if (state === 'needs-input' && !docked) return 'curious'
   if (state === 'loading' && !docked) return 'ponder-loop'
   /*
    * Ambient last. Docked is excluded for the same reason every other motion is: half

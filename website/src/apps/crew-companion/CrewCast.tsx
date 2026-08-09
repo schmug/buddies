@@ -70,6 +70,43 @@ export function restingPetState(aggregate: AgentState, reaction: PetState): PetS
 }
 
 /**
+ * Aggregate states whose companion motion LOOPS, so it may be driven by simply being
+ * in that state.
+ *
+ * Everything else resolves to a one-shot keyframe — `kg-celebrate` (900ms) and
+ * `kg-error` (800ms). Both end back at neutral and neither is in `POSED_ANIMS`, so
+ * holding one past its run costs nothing visually: the companion sits at its resting
+ * transform with cursor tracking live, exactly as if no animation were set.
+ *
+ * The cost is that `activeAnimFor` still returns non-null, and its ambient branch
+ * surfaces an idle fidget only while the state is `idle`. So an aggregate that
+ * persists starves the fidget: one finished-but-unread session would leave the
+ * companion inert for as long as it stayed unread, because `ready` outranks `running`
+ * in `crewStatus`'s priority order and nothing would clear it but the user.
+ */
+const SUSTAINED_MOTION: ReadonlySet<AgentState> = new Set<AgentState>([
+  'running',
+  'needs-input',
+  'idle',
+])
+
+/**
+ * What the companion's MOTION is computed from — the same inputs as
+ * `restingPetState`, answering a different question.
+ *
+ * `restingPetState` chooses the ART, which may sit in a pose indefinitely.
+ * This chooses the KEYFRAMES, which may not: a celebration is a reaction to ARRIVING
+ * at `ready`, not a property of BEING there. The arrival is carried by the reaction —
+ * `pet.tsx` raises one through the same `react()` path a completion bubble uses — so
+ * once that reaction expires the motion settles to nothing while the art keeps
+ * showing what the crew's condition is.
+ */
+export function motionPetState(aggregate: AgentState, reaction: PetState): PetState {
+  if (reaction !== 'idle') return reaction
+  return SUSTAINED_MOTION.has(aggregate) ? AGGREGATE_TO_PET[aggregate] : 'idle'
+}
+
+/**
  * Whether two crew snapshots would draw the same desktop.
  *
  * The overlay re-derives its status on a timer, so without this every tick would be
@@ -77,6 +114,13 @@ export function restingPetState(aggregate: AgentState, reaction: PetState): PetS
  * days — with nothing on screen changing. Only the fields the desktop actually draws
  * are compared: `agents` carries the whole crew for other surfaces, and an idle
  * agent's `since` ticking over is not a repaint.
+ *
+ * `slotKey` is NOT compared, and that rests on a transport invariant this module
+ * cannot enforce: `sessionWatch.snapshot()` derives both `id` and `slotKey` from the
+ * same slot string, so equal ids imply equal slot keys. A transport that ever
+ * decoupled the two would have to be compared here as well — `slotKey` is what
+ * `onSelect` carries, so a change it missed would leave a sprite pointing at the
+ * wrong session.
  */
 export function sameCrewView(a: CrewStatus, b: CrewStatus): boolean {
   if (a.aggregate !== b.aggregate || a.overflow !== b.overflow) return false
@@ -98,21 +142,35 @@ export interface CrewCastProps {
   cast: CrewAgent[]
   /** Cast-eligible agents that did not fit under the cap, shown as a count. */
   overflow: number
+  /**
+   * Whether `petPos` is the companion's REAL position yet.
+   *
+   * `useDrag` loads the saved position behind a timer plus an async bridge call, so
+   * until it lands `petPos` is the default bottom-right corner. Drawing there would
+   * put sprites beside an invisible companion (`.cc-pet` holds itself at opacity 0
+   * for the same window) and — worse — report their hitboxes at those coordinates,
+   * so a region of the user's desktop would swallow clicks with nothing drawn in it.
+   */
+  ready: boolean
   petPos: { x: number; y: number }
   onSelect: (slotKey: string) => void
   onRects: (rects: HitRect[]) => void
 }
 
-export function CrewCast({ cast, overflow, petPos, onSelect, onRects }: CrewCastProps) {
+export function CrewCast({
+  cast, overflow, ready, petPos, onSelect, onRects,
+}: CrewCastProps) {
   const reduced = useReducedMotion()
 
+  // Empty rather than an early return, so the rect-reporting effect below still runs
+  // and clears the cast rather than leaving a stale set behind.
   const placed = useMemo(
     () =>
-      cast.map((agent, i) => {
+      (ready ? cast : []).map((agent, i) => {
         const { dx, dy } = castSlotOffset(i, cast.length)
         return { agent, x: petPos.x + dx, y: petPos.y + dy }
       }),
-    [cast, petPos.x, petPos.y],
+    [ready, cast, petPos.x, petPos.y],
   )
 
   // Report rects from an effect rather than during render: the parent forwards them
@@ -137,9 +195,16 @@ export function CrewCast({ cast, overflow, petPos, onSelect, onRects }: CrewCast
             type="button"
             aria-label={i18nT('apps.crewCompanion.cast.open_in_worlds', { name: agent.name })}
             onClick={() => onSelect(agent.slotKey)}
+            /*
+             * Entry only, and no `exit`. An exit variant needs an <AnimatePresence>
+             * to keep the node mounted while it plays, and that node would outlive
+             * its reported rect — a visible sprite over click-through desktop, which
+             * is the one failure mode the rect reporting exists to prevent. A
+             * departure animation belongs with the change that reports rects from the
+             * PAINTED position rather than the spring's target.
+             */
             initial={reduced ? false : { opacity: 0, scale: 0.6, x, y }}
             animate={{ opacity: 1, scale: 1, x, y }}
-            exit={reduced ? undefined : { opacity: 0, scale: 0.6 }}
             transition={reduced ? { duration: 0 } : { type: 'spring', stiffness: 120, damping: 18 }}
             style={{
               position: 'absolute',
@@ -159,7 +224,8 @@ export function CrewCast({ cast, overflow, petPos, onSelect, onRects }: CrewCast
         )
       })}
 
-      {overflow > 0 ? (
+      {/* The badge is anchored to petPos too, so it waits for the same gate. */}
+      {ready && overflow > 0 ? (
         <div
           role="status"
           aria-label={i18nT('apps.crewCompanion.cast.more_agents', { count: overflow })}
