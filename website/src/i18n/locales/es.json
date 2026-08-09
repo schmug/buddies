@@ -966,13 +966,13 @@
         "title": "Crew Companion"
       },
       "manifest": {
-        "description": "Un acompañante de escritorio para Kiro Crew que te ayuda a marcar el ritmo de tu día: te recuerda tomar descansos, guarda los recordatorios que creas en lenguaje natural y hace un ejercicio corto de respiración cuando necesitas despejarte. También te avisa cuando una sesión termina, falla o necesita tu aprobación.",
+        "description": "Un acompañante que vive en tu escritorio y te muestra qué está haciendo tu tripulación. Cada sesión que está trabajando — o esperándote — recibe su propio personaje, y el acompañante avisa cuando una termina, falla o necesita tu aprobación. Haz clic en un personaje para abrir la vista de la tripulación y responderle. También te ayuda a marcar el ritmo de tu día, con avisos de descanso, recordatorios en lenguaje natural y un ejercicio corto de respiración.",
         "display_name": "Crew Companion",
-        "highlight_1": "Avisos suaves para descansar — agua, estirarse, mirar a lo lejos — en el intervalo que elijas",
-        "highlight_2": "Recordatorios que creas en lenguaje natural, como \"toma agua en 20 minutos\"",
-        "highlight_3": "Un ejercicio corto de respiración para despejarte cuando lo necesitas",
-        "highlight_4": "Te avisa cuando una sesión termina, falla o necesita tu aprobación",
-        "highlight_5": "Flota en tu escritorio con un avatar intercambiable",
+        "highlight_1": "Un personaje en tu escritorio por cada sesión que está trabajando o esperándote",
+        "highlight_2": "Avisa cuando un turno termina, falla o necesita tu aprobación — las malas noticias nunca se silencian",
+        "highlight_3": "Haz clic en un personaje para abrir la vista de la tripulación y aprobar, responder o mirar más de cerca",
+        "highlight_4": "Avisos suaves para descansar, y recordatorios que creas en lenguaje natural, como \"toma agua en 20 minutos\"",
+        "highlight_5": "Un ejercicio corto de respiración, y un avatar intercambiable que puedes importar o dibujar tú mismo",
         "page_label": "Crew Companion"
       },
       "memories": {

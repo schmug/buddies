@@ -678,13 +678,13 @@
     },
     "crewCompanion": {
       "manifest": {
-        "description": "A desktop companion for Kiro Crew that helps you pace your day: it nudges you to take breaks, holds the reminders you set in plain language, and runs a short breathing exercise when you need to reset. It also lets you know when a session finishes, fails, or needs your OK.",
+        "description": "A companion that lives on your desktop and shows you what your crew is up to. Every session that is working — or waiting on you — gets its own character, and the companion speaks up when one finishes, fails, or needs your OK. Click a character to open the crew view, where you can answer it. It also helps you pace your day, with break nudges, reminders in plain language, and a short breathing exercise.",
         "display_name": "Crew Companion",
-        "highlight_1": "Gentle break nudges — water, stretch, look away — on an interval you choose",
-        "highlight_2": "Reminders you set in plain language, like “drink water in 20 minutes”",
-        "highlight_3": "A short breathing exercise to reset when you need it",
-        "highlight_4": "Tells you when a session finishes, fails, or needs your OK",
-        "highlight_5": "Floats on your desktop with a swappable avatar",
+        "highlight_1": "A character on your desktop for every session that is working or waiting on you",
+        "highlight_2": "Speaks up when a turn finishes, fails, or needs your approval — bad news is never silenced",
+        "highlight_3": "Click a character to open the crew view and approve, reply, or take a closer look",
+        "highlight_4": "Gentle break nudges, and reminders you set in plain language, like “drink water in 20 minutes”",
+        "highlight_5": "A short breathing exercise, and a swappable avatar you can import or draw yourself",
         "page_label": "Crew Companion"
       }
     },
