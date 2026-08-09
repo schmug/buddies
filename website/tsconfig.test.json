@@ -1,0 +1,37 @@
+// Type-check project for TEST code. `tsconfig.app.json` deliberately EXCLUDES
+// `src/test`, `src/**/*.test.ts(x)`, and never included `integration/` or
+// `playwright/` at all, so until this project existed the whole test tree was
+// compiled by nothing: a `const x: number = 's'` in any of it exited 0.
+//
+// Same compiler options as the app (strict, noUnusedLocals, …) — a test is code
+// and gets the same rules. The only additions are the ambient types the app
+// build has no reason to load:
+//   vitest/globals            `globals: true` in vite.config.ts means tests call
+//                             describe/it/expect without importing them.
+//   node                      integration/, playwright/ and the vitest setup
+//                             files touch process/Buffer/__dirname.
+//   @testing-library/jest-dom the toBeInTheDocument()-style matcher augmentation.
+// Listing `types` at all disables TypeScript's automatic @types/* inclusion, so
+// anything else the test tree needs has to be added here explicitly.
+//
+// `exclude: []` overrides the inherited exclusions rather than merging with them
+// — that is the entire point of this file. `include` keeps all of `src` so the
+// program is identical to the app's plus the tests; ambient declarations like
+// src/vite-env.d.ts are picked up the same way, and narrowing it to test globs
+// only re-reports the app's own files as broken.
+//
+// NOT referenced from tsconfig.json, so `tsc -b` does not build it: the test
+// tree carries a pre-existing error backlog recorded in tsconfig.test.baseline.json,
+// and a reference here would turn `npm run build` red for everyone. The gate is
+// `npm run typecheck:tests` (scripts/check-test-types.mjs), which fails on any
+// error that baseline does not already record. Once the baseline is empty,
+// delete it with its runner and add `{ "path": "./tsconfig.test.json" }` to
+// tsconfig.json's `references` instead.
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "types": ["vitest/globals", "node", "@testing-library/jest-dom"]
+  },
+  "include": ["src", "integration", "playwright"],
+  "exclude": []
+}

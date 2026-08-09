@@ -19,17 +19,36 @@ npm run test:watch        # vitest, watch mode
 npm run test:electron     # the Electron node:test suite
 npm run test:playwright   # playwright test --headed --workers=1
 npm run test:playwright:headless
-npx tsc -b                # the real type check
+npm run typecheck         # tsc -b — application code
+npm run typecheck:tests   # test code (see below)
 ```
 
-Two traps worth knowing before you trust a green run:
+Two things worth knowing before you trust a green run:
 
-- **`npm run typecheck` checks ZERO files.** It runs `tsc --noEmit`, and the root
-  `tsconfig.json` sets `"files": []` with project references, so nothing is checked
-  and it always passes. Use `npx tsc -b`, which is what `npm run build` and CI run.
+- **Type-checking takes two commands.** `tsconfig.app.json` excludes `src/test`
+  and `src/**/*.test.ts(x)`, and never covered `integration/` or `playwright/`, so
+  `npm run typecheck` (`tsc -b`, what `npm run build` and CI run) checks
+  application code only. Test code is a second project, `tsconfig.test.json`,
+  gated by `npm run typecheck:tests`. Both run in CI; `npm run check` runs both.
 - **`npm test` is wider than it looks.** It runs the Electron suite as well as the
   website suite, and the `pretest` hook runs a jscpd duplication check first, so
   `npm test` can fail on copy-paste before a single test executes.
+
+## Type-checking test code
+
+`npm run typecheck:tests` runs `tsc` over `tsconfig.test.json` and compares the
+result against `tsconfig.test.baseline.json`, a per-file record of the errors the
+test tree already carried when the gate was added. A file that gains errors fails
+the gate; a file that loses them fails too, until the baseline is shrunk in the
+same commit:
+
+```bash
+npm run typecheck:tests -- --update   # after fixing errors in a baselined file
+```
+
+The baseline exists only because the backlog cannot be fixed in one change. When
+it reaches zero, delete it and its runner and add `tsconfig.test.json` to
+`tsconfig.json`'s `references`, so plain `tsc -b` covers tests too.
 
 ## Choosing a layer
 
@@ -84,7 +103,8 @@ match when you are debugging a CI-only failure: see
 
 - **jscpd** duplication check: copy-pasted code fails the build.
 - Coverage is emitted as cobertura XML from `test:website`.
-- `npx tsc -b` and eslint run as their own blocking steps.
+- `npx tsc -b` (application code), `npm run typecheck:tests` (test code) and
+  eslint run as their own blocking steps.
 
 Backend-side test determinism and suite-speed rules (they apply to the same CI run)
 are in

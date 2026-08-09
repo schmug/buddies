@@ -818,10 +818,24 @@ jobs:
 
       - name: Type check
         working-directory: website
-        # `tsc -b`, NOT `npm run typecheck`: the root tsconfig has `files: []`
-        # + project references, so `tsc --noEmit` (what `typecheck` runs) checks
-        # ZERO files and always passes. `tsc -b` actually type-checks the project.
+        # `tsc -b`, NOT `tsc --noEmit`: the root tsconfig has `files: []` + project
+        # references, so `--noEmit` checks ZERO files and always passes. This
+        # builds `tsconfig.app.json`, which covers APPLICATION CODE ONLY — it
+        # excludes `src/test` and `src/**/*.test.ts(x)`. Tests are the step below.
         run: npx tsc -b
+
+      # Test code is a second project (`tsconfig.test.json`) precisely because
+      # `tsconfig.app.json` excludes it: until this step existed, every test,
+      # integration/ and playwright/ file was type-checked by NOTHING and a
+      # `const x: number = 's'` in any of them exited 0. It cannot simply be added
+      # to `tsconfig.json`'s references while those files carry a pre-existing
+      # error backlog — that would turn `npm run build` red for everyone — so the
+      # backlog is pinned per file in `tsconfig.test.baseline.json` and this gate
+      # fails on any error beyond it, in either direction. Burn the baseline down
+      # to zero and the reference replaces this step.
+      - name: Type check tests
+        working-directory: website
+        run: npm run typecheck:tests
 
       - name: Lint
         working-directory: website

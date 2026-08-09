@@ -31,10 +31,12 @@ TypeScript, Vite 5. Prefer the library already here over a new dependency.
 
 ## Build and test: two gotchas that produce a silent false green
 
-- **`npm run typecheck` checks ZERO files.** It runs `tsc --noEmit`, and the root
-  `tsconfig.json` has `"files": []` with project references, so nothing is
-  type-checked and it always passes. Use **`npx tsc -b`** (what `npm run build` and
-  CI run) whenever you mean to type-check.
+- **Type-checking takes TWO commands.** `npm run typecheck` (`tsc -b`, what
+  `npm run build` and CI run) covers APPLICATION code only: `tsconfig.app.json`
+  excludes `src/test` and `src/**/*.test.ts(x)`, and never covered `integration/`
+  or `playwright/`. Test code is a separate project gated by
+  **`npm run typecheck:tests`**. Run both, or `npm run check`. A type error in a
+  test file is invisible to `tsc -b`.
 - **The `localStorage` test polyfill must stay on `Storage.prototype`.** Assigning
   it elsewhere makes the mock silently miss.
 
