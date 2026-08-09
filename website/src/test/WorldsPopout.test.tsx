@@ -147,9 +147,13 @@ describe('WorldsPopout live transport', () => {
   })
   afterEach(() => { vi.unstubAllGlobals() })
 
-  it('opens a socket of its own', () => {
+  it('opens exactly one socket of its own', () => {
     renderWithProviders(<WorldsPopout />)
-    expect(MockWebSocket.instances.length).toBeGreaterThan(0)
+    // Exactly one, not merely at least one. No double-mount is reachable today —
+    // the router renders a single route match — but "at least one" stays green if
+    // `useWebSocket()` is later hoisted into a shared wrapper the popout also
+    // renders, and the popout would then quietly hold two sockets per window.
+    expect(MockWebSocket.instances).toHaveLength(1)
   })
 
   it('records a slot failure from a chat_message the popout received', () => {
