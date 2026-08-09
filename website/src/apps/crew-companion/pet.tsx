@@ -1011,7 +1011,8 @@ function Companion() {
   // cursor at ~60fps and toggles this overlay's click-through itself. The context
   // menu reports its own rect separately (PetContextMenu → petBridge.setMenuHitbox).
   // `placement` is null until the bubble is measured, so the bubble rect is reported
-  // once it lands.
+  // once it lands. Cast-sprite rects are part of the same contract but are not sent
+  // from here, so these reports declare an empty cast.
   useMouseForward({ pos, bubbleRect: placement?.rect ?? null, dragging })
 
   // Playful motion runs only when the companion is settled — not while it is being

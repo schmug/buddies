@@ -2,6 +2,10 @@
  * useMouseForward — reports the companion's and bubble's hitboxes to the main
  * process, which polls the cursor at ~60fps and toggles ignore-mouse itself.
  *
+ * The reported set also has room for a list of cast-sprite rects. This hook sends
+ * only the two, so its reports carry an empty cast; whatever teaches it about the
+ * cast must send them on every report, because one that omits them clears them.
+ *
  * Ported from the desktop app's `src/renderer/hooks/useMouseForward.ts`. The
  * header there says it plainly: sending the hitbox rects and letting the main
  * process do the hit-test "eliminates the IPC round-trip delay that caused clicks
