@@ -14,8 +14,19 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, cleanup, waitFor } from '@testing-library/react'
 
+import { toDataUri } from '../apps/crew-companion/animationResolver'
+
 // A tiny inline SVG so the custom pack resolves to a real `svg` art kind.
 const CUSTOM_SVG = '<svg xmlns="http://www.w3.org/2000/svg"><rect width="10" height="10"/></svg>'
+
+/**
+ * The body `src` the custom pack — and only the custom pack — resolves to.
+ *
+ * Derived through the same helper PetAvatar uses, so the two cannot drift apart:
+ * if the encoding ever changes, the guard follows it instead of silently waiting
+ * forever on a string production no longer emits.
+ */
+const CUSTOM_BODY_SRC = toDataUri(CUSTOM_SVG)
 
 const config = { activeAppearance: 'kiro-ghost' as string }
 
@@ -54,10 +65,25 @@ describe('celebrate props are built-in only', () => {
     const { container } = render(
       <PetAvatar size={128} state="done" accessory="partyhat" />,
     )
-    // Wait until the custom art has resolved (the body <img> appears), THEN assert the
-    // prop is absent -- otherwise the test could pass on the pre-resolve default frame.
+    /*
+     * Wait for the CUSTOM pack's OWN body art, not merely for "a data URI exists".
+     *
+     * The built-in ghost is served as a `data:` URI too — the bundler inlines
+     * `kiro_idle.svg` — so `img[src^="data:"]` is already satisfied on the
+     * pre-resolve default frame, which is the exact frame that legitimately wears
+     * the hat. A guard phrased that way admits the state it exists to exclude: on
+     * a runner slow enough that the pack resolution lands after the first poll,
+     * the assertion below fires against the built-in and fails on art that is
+     * doing precisely what it should.
+     *
+     * `CUSTOM_BODY_SRC` can only appear once `art.kind === 'svg'`, and `isDefault`
+     * is derived from that same state in the same commit — so once this is in the
+     * DOM, the accessory layer's gate has already been evaluated against the
+     * custom pack.
+     */
     await waitFor(() => {
-      expect(container.querySelector('img[src^="data:"]')).not.toBeNull()
+      const srcs = Array.from(container.querySelectorAll('img'), img => img.getAttribute('src'))
+      expect(srcs).toContain(CUSTOM_BODY_SRC)
     })
     expect(container.querySelector('img[src*="partyhat"]')).toBeNull()
   })
