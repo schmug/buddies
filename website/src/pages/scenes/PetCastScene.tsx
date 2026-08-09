@@ -19,6 +19,7 @@ import {
   type StatusInput,
 } from '../../apps/crew-companion/crewStatus'
 import { PetAvatar, type PetState } from '../../apps/crew-companion/PetAvatar'
+import { useAttentionReplay } from '../../apps/crew-companion/useAttentionReplay'
 import { useAgentPopover } from '../../hooks/useAgentPopover'
 import { i18nT } from '../../i18n/t'
 
@@ -182,6 +183,17 @@ export default function PetCastScene(
   const { anchorRef } = popover
   useEffect(() => { anchorRef.current = containerRef.current }, [anchorRef])
 
+  /*
+   * The head-cock is a 2000ms one-shot, so a waiting character settles to neutral
+   * while every `running` character beside it keeps bobbing on an infinite loop —
+   * scanning a full cast, the one that needs you would be the one that moves least.
+   * Gated on `visible` for the same reason the avatars are: nine scenes stay mounted
+   * at once and a hidden one must cost nothing.
+   */
+  const attentionEpoch = useAttentionReplay(
+    visible && crew.agents.some((agent) => agent.state === 'needs-input'),
+  )
+
   const sceneAgentFor = (agent: { id: string; name: string; state: AgentState; kind: AgentKind }) => ({
     id: agent.id, name: agent.name, x: 0, y: 0,
     running: agent.state === 'running', detail: '', kind: agent.kind,
@@ -245,7 +257,15 @@ export default function PetCastScene(
             when the scene comes back.
           */}
           <span style={{ width: CHARACTER_PX, height: CHARACTER_PX, display: 'block' }}>
-            {visible ? <PetAvatar state={STATE_TO_PET[agent.state]} size={CHARACTER_PX} /> : null}
+            {/* The epoch reaches only the held one-shot; `celebrate` and `ponder-loop`
+                must not be restarted part-way through. */}
+            {visible ? (
+              <PetAvatar
+                state={STATE_TO_PET[agent.state]}
+                size={CHARACTER_PX}
+                animEpoch={agent.state === 'needs-input' ? attentionEpoch : 0}
+              />
+            ) : null}
           </span>
           <span
             style={{

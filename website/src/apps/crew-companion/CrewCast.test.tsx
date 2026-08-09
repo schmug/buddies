@@ -6,8 +6,8 @@
  * the overlay is click-through except over reported rects: a sprite whose rect is
  * missing looks clickable and silently is not.
  */
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import {
@@ -18,7 +18,7 @@ import {
   sameCrewView,
 } from './CrewCast'
 import { CAST_PX } from './castLayout'
-import { activeAnimFor } from './petAnim'
+import { activeAnimFor, ATTENTION_REPLAY_MS } from './petAnim'
 import { deriveCrewStatus, type CrewAgent, type StatusInput } from './crewStatus'
 
 const agent = (id: string, state: CrewAgent['state'] = 'running'): CrewAgent => ({
@@ -125,6 +125,89 @@ describe('CrewCast', () => {
     render(<CrewCast ready cast={[agent('a')]} overflow={9} petPos={{ x: 0, y: 0 }}
       onSelect={vi.fn()} onRects={onRects} />)
     expect(onRects.mock.calls.at(-1)?.[0]).toHaveLength(1)
+  })
+})
+
+/**
+ * A sprite that HOLDS the head-cock has to be re-triggered, or it is the stillest
+ * thing on the desktop.
+ *
+ * `kg-curious` is `2000ms … both` and its 100% keyframe is its 0% keyframe, so after
+ * two seconds a waiting sprite sits at neutral — while the `running` sprites beside
+ * it bob forever on `ponder-loop`, which is `infinite`. That inverts the priority the
+ * state exists to express: the one agent that cannot progress without you would be
+ * the only one not moving. `curious` is in `POSED_ANIMS`, so the eyes still hold an
+ * offset — but an expression is not motion, and it is motion that catches an eye
+ * crossing the desktop.
+ *
+ * PetAvatar keys its animated span on `animEpoch`, so bumping the epoch remounts the
+ * node and the keyframes re-fire. Asserted on NODE IDENTITY rather than on a class
+ * name: the class never changes, and it is the remount that replays the motion.
+ */
+describe('CrewCast replays the head-cock while a sprite waits on the user', () => {
+  const animSpan = (c: HTMLElement) => c.querySelector('span[aria-hidden] > span')
+
+  const castOf = (...cast: CrewAgent[]) => (
+    <CrewCast ready cast={cast} overflow={0} petPos={{ x: 0, y: 0 }}
+      onSelect={vi.fn()} onRects={vi.fn()} />
+  )
+
+  beforeEach(() => { vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers() })
+
+  it('remounts the waiting sprite once per replay interval', () => {
+    const { container } = render(castOf(agent('a', 'needs-input')))
+    const first = animSpan(container)
+    expect(first?.className).toContain('kg-anim-curious')
+
+    act(() => { vi.advanceTimersByTime(ATTENTION_REPLAY_MS) })
+    const second = animSpan(container)
+    expect(second?.className).toContain('kg-anim-curious')
+    expect(second).not.toBe(first)
+
+    act(() => { vi.advanceTimersByTime(ATTENTION_REPLAY_MS) })
+    expect(animSpan(container)).not.toBe(second)
+  })
+
+  it('holds the sprite still between replays, so it is a glance and not a twitch', () => {
+    const { container } = render(castOf(agent('a', 'needs-input')))
+    const first = animSpan(container)
+    act(() => { vi.advanceTimersByTime(ATTENTION_REPLAY_MS - 1) })
+    expect(animSpan(container)).toBe(first)
+  })
+
+  it('never churns a busy sprite — ponder-loop is infinite and a remount restarts it', () => {
+    // Remounting a looping motion would restart the bob from 0% at a random point in
+    // its cycle, which reads as a stutter. Only the held one-shot is replayed.
+    const { container } = render(castOf(agent('busy', 'running'), agent('a', 'needs-input')))
+    const busy = container.querySelectorAll('span[aria-hidden] > span')[0]
+    expect(busy.className).toContain('kg-anim-ponder-loop')
+    act(() => { vi.advanceTimersByTime(ATTENTION_REPLAY_MS * 3) })
+    expect(container.querySelectorAll('span[aria-hidden] > span')[0]).toBe(busy)
+  })
+
+  it('starts no timer at all when nobody is waiting', () => {
+    render(castOf(agent('busy', 'running')))
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('stays inert under prefers-reduced-motion', () => {
+    // The stylesheet sets `.kg-anim-curious { animation: none }` there, so a replay
+    // would remount the node to play nothing.
+    const real = window.matchMedia
+    window.matchMedia = ((q: string) => ({
+      matches: q.includes('prefers-reduced-motion'), media: q, onchange: null,
+      addEventListener: () => {}, removeEventListener: () => {},
+      addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
+    })) as unknown as typeof window.matchMedia
+    try {
+      const { container } = render(castOf(agent('a', 'needs-input')))
+      const first = animSpan(container)
+      act(() => { vi.advanceTimersByTime(ATTENTION_REPLAY_MS * 3) })
+      expect(animSpan(container)).toBe(first)
+    } finally {
+      window.matchMedia = real
+    }
   })
 })
 

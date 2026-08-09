@@ -57,7 +57,9 @@ import { useEdgeHide } from './useEdgeHide'
 import { useWalking } from './useWalking'
 import { useIdleFidget } from './useIdleFidget'
 import { useRandomClips, type RandomBehaviors } from './useRandomClips'
-import { activeAnimFor, CELEBRATE_MS, CELEBRATE_PROP_HOLD_MS, type PetAnim } from './petAnim'
+import {
+  activeAnimFor, ATTENTION_REPLAY_MS, CELEBRATE_MS, CELEBRATE_PROP_HOLD_MS, type PetAnim,
+} from './petAnim'
 import { ALL_MOODS } from './appearanceTypes'
 
 /** Well inside the backend's 90s presence TTL, so one dropped request is harmless. */
@@ -107,21 +109,6 @@ const CREW_POLL_MS = 1_000
  * failure looks the same whether a bubble or the aggregate raised it.
  */
 const AGGREGATE_ERROR_MS = 2_000
-
-/**
- * How often the head-cock replays while an agent is waiting on the user.
- *
- * `.kg-anim-curious` is a 2s one-shot that ends back at neutral, and this is the only
- * condition that persists until a person acts — so without a replay the companion
- * goes still for the one thing that exists to be noticed. Well above the keyframe's
- * own length, so it reads as a periodic glance rather than a twitch.
- *
- * The aggregate's `needs-input` is what this exists for. The other route to a
- * head-cock is `mood === 'curious'`, and `useMood` clears a transient mood well
- * inside this interval, so that route never gets a second turn — the held state is
- * the only one that does.
- */
-const ATTENTION_REPLAY_MS = 8_000
 
 /**
  * The preload bridge. Optional because this same page is openable in an ordinary
@@ -821,6 +808,10 @@ function Companion() {
    * The epoch bump is the same remount the file uses for every repeated motion; the
    * ref is set during render (like `playActiveRef` and `facingRightRef`) so this
    * interval always sees the current frame's motion and never restarts anything else.
+   *
+   * The held `needs-input` aggregate is what gets the replays in practice. The other
+   * route to a head-cock is a transient `curious` mood, and `useMood` clears one well
+   * inside this interval, so it never survives to a second turn.
    */
   const cockingRef = useRef(false)
   useEffect(() => {
