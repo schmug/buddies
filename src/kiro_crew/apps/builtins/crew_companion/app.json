@@ -2,16 +2,16 @@
   "name": "crew-companion",
   "version": "1.0.0",
   "displayName": "Crew Companion",
-  "description": "A desktop companion for Kiro Crew that helps you pace your day: it nudges you to take breaks, holds the reminders you set in plain language, and runs a short breathing exercise when you need to reset. It also lets you know when a session finishes, fails, or needs your OK.",
+  "description": "A companion that lives on your desktop and shows you what your crew is up to. Every session that is working — or waiting on you — gets its own character, and the companion speaks up when one finishes, fails, or needs your OK. Click a character to open the crew view, where you can answer it. It also helps you pace your day, with break nudges, reminders in plain language, and a short breathing exercise.",
   "author": "kirocrew",
   "license": "MIT",
   "defaultEnabled": false,
   "highlights": [
-    "Gentle break nudges — water, stretch, look away — on an interval you choose",
-    "Reminders you set in plain language, like “drink water in 20 minutes”",
-    "A short breathing exercise to reset when you need it",
-    "Tells you when a session finishes, fails, or needs your OK",
-    "Floats on your desktop with a swappable avatar"
+    "A character on your desktop for every session that is working or waiting on you",
+    "Speaks up when a turn finishes, fails, or needs your approval — bad news is never silenced",
+    "Click a character to open the crew view and approve, reply, or take a closer look",
+    "Gentle break nudges, and reminders you set in plain language, like “drink water in 20 minutes”",
+    "A short breathing exercise, and a swappable avatar you can import or draw yourself"
   ],
   "backend": {
     "hooks": {
@@ -45,6 +45,7 @@
     ]
   },
   "tags": [
+    "agent-status",
     "companion",
     "desktop-companion",
     "reminders",
