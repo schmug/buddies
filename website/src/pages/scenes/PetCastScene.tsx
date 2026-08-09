@@ -30,14 +30,14 @@ const CHARACTER_GUTTER_PX = 24
 /**
  * Which pet appearance each crew state wears.
  *
- * `needs-input` and `blocked` are the two that carry urgency, and the pack format
- * offers `done` (one hop) and `error` (one shake) for them. `needs-input` hops
- * because it is a question, not a failure — the shake belongs to the state that
- * really did break. `ready` shares the hop: both mean "your turn", and the state
- * line underneath is what separates them in words.
+ * `needs-input` and `blocked` are the two that carry urgency, and each has its own
+ * pose: the head-cock for `needs-input` because it is a question, and the shake for
+ * `blocked` because that is the state that really did break. `ready` takes the hop —
+ * it also means "your turn", and the state line underneath is what separates it from
+ * `needs-input` in words.
  */
 const STATE_TO_PET: Record<AgentState, PetState> = {
-  'needs-input': 'done',
+  'needs-input': 'needs-input',
   blocked: 'error',
   ready: 'done',
   running: 'loading',

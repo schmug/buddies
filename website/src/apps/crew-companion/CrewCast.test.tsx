@@ -134,10 +134,17 @@ describe('castAppearance', () => {
   })
 
   it('distinguishes an agent waiting on the user from one merely working', () => {
+    // The STATE has to carry it, not the mood alone: a sprite is handed no explicit
+    // `anim`, so PetAvatar resolves one from STATE_TO_ANIM — and the busy pose there
+    // is the ponder loop, which reads as "still working" at exactly the moment the
+    // user must be told nothing is progressing.
+    expect(castAppearance('needs-input').state).toBe('needs-input')
     expect(castAppearance('needs-input')).not.toEqual(castAppearance('running'))
   })
 
   it('marks the waiting agent as a question rather than a failure', () => {
+    // `curious` selects the same head-cock STATE_TO_ANIM gives `needs-input`, so the
+    // mood path and the state path agree instead of fighting over one body.
     expect(castAppearance('needs-input').mood).toBe('curious')
     expect(castAppearance('running').mood).toBeUndefined()
   })
@@ -190,6 +197,9 @@ describe('restingPetState', () => {
     expect(restingPetState('ready', 'idle')).toBe('done')
     expect(restingPetState('blocked', 'idle')).toBe('error')
     expect(restingPetState('idle', 'idle')).toBe('idle')
+    // Its own pack slot, not the busy alias: this is the art PetAvatar resolves, and
+    // its idle-only fallback is what keeps an art-less pack off a working body.
+    expect(restingPetState('needs-input', 'idle')).toBe('needs-input')
   })
 
   it('lets a live reaction outrank the ambient aggregate', () => {
@@ -206,7 +216,20 @@ describe('motionPetState — the ART may be held, the KEYFRAMES may not', () => 
   it('keeps a sustained aggregate driving its looping motion', () => {
     // ponder-loop is `infinite`, so holding it is the intent.
     expect(activeAnimFor({ state: motionPetState('running', 'idle') })).toBe('ponder-loop')
-    expect(activeAnimFor({ state: motionPetState('needs-input', 'idle') })).toBe('ponder-loop')
+  })
+
+  it('gives a crew waiting on the user the head-cock, never the busy ponder', () => {
+    /*
+     * This is what makes `activeAnimFor`'s `needs-input` branch REACHABLE.
+     * `AnimInputs.state` is a bare `string`, so nothing type-checks the hand-off:
+     * aliasing the aggregate back onto `loading` would compile, and the companion
+     * would ponder-loop — "still working" — for the one condition that means the
+     * opposite. Asserted at both ends for that reason, not just on the final motion.
+     */
+    expect(motionPetState('needs-input', 'idle')).toBe('needs-input')
+    expect(activeAnimFor({ state: motionPetState('needs-input', 'idle') })).toBe('curious')
+    expect(activeAnimFor({ state: motionPetState('needs-input', 'idle') }))
+      .not.toBe(activeAnimFor({ state: motionPetState('running', 'idle') }))
   })
 
   it('plays celebrate ONCE on arriving at ready, via the reaction the arrival raises', () => {

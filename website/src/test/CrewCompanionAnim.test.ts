@@ -64,13 +64,12 @@ describe('activeAnimFor — precedence', () => {
   })
 
   it('MOVES when an agent is waiting on the user', () => {
-    // PRE-STAGED, not yet reachable: the companion's aggregate still routes
-    // `needs-input` to `loading`, so today it ponder-loops like any busy crew (that
-    // current behaviour is pinned in CrewCast.test.tsx). This becomes live the moment
-    // the mapping is repointed — and without it the companion would then be perfectly
-    // still for the one state that exists to demand attention, because the live pet
-    // always passes `anim` explicitly and PetAvatar's STATE_TO_ANIM is therefore
-    // never consulted to cover for it.
+    // Reached through the companion's aggregate, which routes `needs-input` to its
+    // own pet state rather than aliasing it onto `loading` (pinned in
+    // CrewCast.test.tsx, because `AnimInputs.state` is a bare string and nothing
+    // type-checks the hand-off). Without this branch the companion would be perfectly
+    // still for the one state that exists to demand attention: the live pet always
+    // passes `anim` explicitly, so PetAvatar's STATE_TO_ANIM never covers for it.
     expect(activeAnimFor({ state: 'needs-input' })).toBe('curious')
   })
 

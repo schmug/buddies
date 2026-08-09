@@ -116,11 +116,10 @@ const AGGREGATE_ERROR_MS = 2_000
  * goes still for the one thing that exists to be noticed. Well above the keyframe's
  * own length, so it reads as a periodic glance rather than a twitch.
  *
- * NEAR-DEAD until the aggregate routes `needs-input` to its own pack slot: the only
- * head-cock reachable today comes from `mood === 'curious'`, and `useMood` clears a
- * transient mood well inside this interval, so the replay never gets a second turn.
- * It starts doing work on the same one-line repoint that wakes the `needs-input`
- * branch in `activeAnimFor` — no change is needed here.
+ * The aggregate's `needs-input` is what this exists for. The other route to a
+ * head-cock is `mood === 'curious'`, and `useMood` clears a transient mood well
+ * inside this interval, so that route never gets a second turn — the held state is
+ * the only one that does.
  */
 const ATTENTION_REPLAY_MS = 8_000
 

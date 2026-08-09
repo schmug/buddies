@@ -32,6 +32,24 @@ describe('PetCastScene', () => {
     expect(within(character).getByText('Needs you')).toBeTruthy()
   })
 
+  /**
+   * The label is the half you read; this is the half you glance at.
+   *
+   * The scene hands PetAvatar a state and no explicit `anim`, so STATE_TO_PET picks
+   * the MOTION as well as the art. Routing `needs-input` at any other pose therefore
+   * swaps the motion silently and the type checker stays content: `done` hops, which
+   * reads as finished, and `loading` ponders on a loop, which reads as still working —
+   * the two readings this state exists to rule out.
+   */
+  it('gives a character waiting on the user the head-cock, not the completion hop', () => {
+    const { container } = renderWithProviders(
+      <PetCastScene agents={[src('slot-a', { waitingForInput: true })]} visible />,
+    )
+    expect(container.querySelector('.kg-anim-curious')).toBeTruthy()
+    expect(container.querySelector('.kg-anim-celebrate')).toBeNull()
+    expect(container.querySelector('.kg-anim-ponder-loop')).toBeNull()
+  })
+
   it('labels a failed slot as blocked', () => {
     renderWithProviders(<PetCastScene agents={[src('slot-a', { failed: true })]} visible />)
     expect(within(screen.getByRole('button', { name: /Session slot-a/ })).getByText('Blocked')).toBeTruthy()
