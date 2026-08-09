@@ -41,7 +41,7 @@ function harness(): Harness {
   const done: SessionDone[] = []
   let t = 1_000_000
   let silent = false
-  const stop = watchSessions({
+  const watcher = watchSessions({
     onDone: (d) => done.push(d),
     isSilent: () => silent,
     now: () => t,
@@ -50,7 +50,7 @@ function harness(): Harness {
   return {
     done,
     socket,
-    stop,
+    stop: () => watcher.stop(),
     send: (type, data) => socket.onmessage?.({ data: JSON.stringify({ type, data }) }),
     setNow: (v) => { t = v },
     setSilent: (v) => { silent = v },
@@ -326,7 +326,7 @@ describe('session completion → bubble', () => {
     // stale, and waiting out the bounded hold blocks everything behind it.
     let resolved = 0
     const socket = fakeSocket()
-    const stop = watchSessions({
+    const watcher = watchSessions({
       onDone: () => {},
       isSilent: () => false,
       onApprovalResolved: () => { resolved += 1 },
@@ -336,7 +336,7 @@ describe('session completion → bubble', () => {
       data: JSON.stringify({ type: 'approval_resolved', data: { id: 'a1', approved: true } }),
     })
     expect(resolved).toBe(1)
-    stop()
+    watcher.stop()
   })
 
   it('the backend doorbell drains the queue at once', () => {
@@ -346,7 +346,7 @@ describe('session completion → bubble', () => {
     // a specific moment arrived visibly late.
     let rung = 0
     const socket = fakeSocket()
-    const stop = watchSessions({
+    const watcher = watchSessions({
       onDone: () => {},
       isSilent: () => false,
       onFireQueued: () => { rung += 1 },
@@ -370,7 +370,7 @@ describe('session completion → bubble', () => {
     // otherwise this test would keep passing if the code regressed to `type`.
     send('app_event', { app: 'crew-companion', type: 'crew-companion:fire' })
     expect(rung).toBe(1)
-    stop()
+    watcher.stop()
   })
 
   it('a pending approval is announced with the session it is blocking', () => {
@@ -378,7 +378,7 @@ describe('session completion → bubble', () => {
     // slot but no human name — the title comes from the last `slots` frame we saw.
     const approvals: { slot: string; title: string }[] = []
     const socket = fakeSocket()
-    const stop = watchSessions({
+    const watcher = watchSessions({
       onDone: () => {},
       isSilent: () => false,
       onApproval: (a) => approvals.push(a),
@@ -391,7 +391,7 @@ describe('session completion → bubble', () => {
     // The real broadcast shape from state.py: id + slot + tool + ts, no title.
     send('approval', { id: 'a7', slot: 'chat-9', tool: 'shell', tool_purpose: 'run it', ts: 123 })
     expect(approvals).toEqual([{ slot: 'chat-9', title: 'Ship the release' }])
-    stop()
+    watcher.stop()
   })
 
   it('a pending approval still fires when session-done alerts are silenced', () => {
@@ -399,7 +399,7 @@ describe('session completion → bubble', () => {
     // unresolved work — it must announce regardless of that switch.
     const approvals: { slot: string; title: string }[] = []
     const socket = fakeSocket()
-    const stop = watchSessions({
+    const watcher = watchSessions({
       onDone: () => {},
       isSilent: () => true,
       onApproval: (a) => approvals.push(a),
@@ -409,14 +409,14 @@ describe('session completion → bubble', () => {
       data: JSON.stringify({ type: 'approval', data: { id: 'a1', slot: 'chat-1', ts: 1 } }),
     })
     expect(approvals).toEqual([{ slot: 'chat-1', title: '' }])
-    stop()
+    watcher.stop()
   })
 
   it('an approval frame with no slot is ignored', () => {
     // Without a slot there is nothing to label or clear later, so it is not raised.
     let raised = 0
     const socket = fakeSocket()
-    const stop = watchSessions({
+    const watcher = watchSessions({
       onDone: () => {},
       isSilent: () => false,
       onApproval: () => { raised += 1 },
@@ -426,7 +426,7 @@ describe('session completion → bubble', () => {
       data: JSON.stringify({ type: 'approval', data: { id: 'a1', ts: 1 } }),
     })
     expect(raised).toBe(0)
-    stop()
+    watcher.stop()
   })
 
   it('the approval lifecycle is complete: pending raises, resolved releases', () => {
@@ -434,7 +434,7 @@ describe('session completion → bubble', () => {
     // and the resolver already present frees the slot it was holding.
     const events: string[] = []
     const socket = fakeSocket()
-    const stop = watchSessions({
+    const watcher = watchSessions({
       onDone: () => {},
       isSilent: () => false,
       onApproval: () => events.push('raise'),
@@ -447,7 +447,7 @@ describe('session completion → bubble', () => {
     send('approval', { id: 'a1', slot: 'chat-1', ts: 1 })
     send('approval_resolved', { id: 'a1', approved: true })
     expect(events).toEqual(['raise', 'release'])
-    stop()
+    watcher.stop()
   })
 
   it('stopping does not schedule a reconnect', () => {

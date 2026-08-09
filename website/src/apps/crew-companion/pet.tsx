@@ -598,6 +598,8 @@ function Companion() {
     }, CELEBRATE_MS + CELEBRATE_PROP_HOLD_MS)
   }, [])
 
+  // The effect's cleanup is the watcher's `stop` half — safe to hand over on its
+  // own because it is a closure over the socket, not a method that reads `this`.
   useEffect(() => watchSessions({
     isSilent: () => sessionAlertsRef.current === false,
     // The backend rang: drain now rather than at the next tick of the poll.
@@ -714,7 +716,7 @@ function Companion() {
       if (slotRef.current?.sticky) slotRef.current = null
       setBubble((b) => (b && isSticky(b.kind) ? null : b))
     },
-  }), [react, setMood, celebrateWithProp, bumpReaction])
+  }).stop, [react, setMood, celebrateWithProp, bumpReaction])
 
   /** Presence: silence is read as "nobody is there", so this must not stop. */  useEffect(() => {
     void post(PRESENCE_PATH)
@@ -1011,7 +1013,8 @@ function Companion() {
   // cursor at ~60fps and toggles this overlay's click-through itself. The context
   // menu reports its own rect separately (PetContextMenu → petBridge.setMenuHitbox).
   // `placement` is null until the bubble is measured, so the bubble rect is reported
-  // once it lands.
+  // once it lands. Cast-sprite rects are part of the same contract but are not sent
+  // from here, so these reports declare an empty cast.
   useMouseForward({ pos, bubbleRect: placement?.rect ?? null, dragging })
 
   // Playful motion runs only when the companion is settled — not while it is being

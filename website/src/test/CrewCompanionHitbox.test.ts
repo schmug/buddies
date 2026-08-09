@@ -2,10 +2,15 @@
  * Cursor-hitbox geometry, and which rects the companion reports.
  *
  * The overlay covers the whole display and is click-through except over the
- * companion, its bubble, and (while open) the context menu. `hitbox.ts` is the
- * pure geometry both sides share; `useMouseForward` is what actually reports the
- * companion + bubble rects to the main process. These pin which rects are
- * reported and that a point is classified inside/outside each one.
+ * companion, its bubble, (while open) the context menu, and each cast sprite.
+ * `hitbox.ts` is the pure geometry both sides share; `useMouseForward` is what
+ * actually reports the companion + bubble rects to the main process. These pin
+ * which rects are reported and that a point is classified inside/outside each one.
+ *
+ * The cast half of the same contract is covered in
+ * `apps/crew-companion/hitbox.test.ts`. The `toHaveBeenCalledWith` arity below is
+ * load-bearing: it fails the day `useMouseForward` starts sending cast rects, which
+ * is the signal to widen these expectations rather than a flake to work around.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook } from '@testing-library/react'

@@ -1047,6 +1047,7 @@
         "hiding": "숨는 중",
         "idle": "대기",
         "listening": "듣는 중",
+        "needsInput": "입력 대기",
         "offline": "오프라인",
         "peekThinking": "엿보며 생각 중",
         "peeking": "엿보는 중",

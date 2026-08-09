@@ -26,6 +26,10 @@ type Preload = {
    * the cursor and toggles ignore-mouse itself. Passing rects rather than a
    * pointer-enter/leave boolean is what removes the IPC round-trip that let a click
    * on the companion body fall through to the window behind it.
+   *
+   * The preload accepts a third argument, a list of one rect per cast sprite. This
+   * signature stops at two, so anything it sends reports an empty cast — widen both
+   * together, since a report that omits the cast clears it.
    */
   updateHitbox?(
     pet: { x: number; y: number; w: number; h: number } | null,
@@ -103,6 +107,10 @@ export interface PetBridge {
    * ignore-mouse from these rects directly, with no pointer-enter/leave round-trip
    * — which is what stopped clicks on the companion body falling through to the
    * window behind it.
+   *
+   * The underlying contract carries a third argument, a list of one rect per cast
+   * sprite. This signature stops at two, so anything it sends reports an empty cast
+   * — widen both together, since a report that omits the cast clears it.
    */
   updateHitbox?: (
     pet: { x: number; y: number; w: number; h: number } | null,
