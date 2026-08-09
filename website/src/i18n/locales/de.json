@@ -940,13 +940,13 @@
         "title": "Crew Companion"
       },
       "manifest": {
-        "description": "Ein Desktop-Begleiter für Kiro Crew, der dir hilft, dein Tempo zu halten: Er erinnert dich an Pausen, verwaltet die Erinnerungen, die du in normaler Sprache setzt, und führt eine kurze Atemübung durch, wenn du abschalten musst. Außerdem sagt er dir, wenn eine Sitzung endet, fehlschlägt oder deine Zustimmung braucht.",
+        "description": "Ein Begleiter, der auf deinem Desktop lebt und dir zeigt, was deine Crew gerade macht. Jede Sitzung, die arbeitet — oder auf dich wartet —, bekommt eine eigene Figur, und der Begleiter meldet sich, wenn eine fertig wird, fehlschlägt oder deine Zustimmung braucht. Klicke auf eine Figur, um die Crew-Ansicht zu öffnen und dort zu antworten. Außerdem hilft er dir, dein Tempo zu halten: mit Pausenhinweisen, Erinnerungen in normaler Sprache und einer kurzen Atemübung.",
         "display_name": "Crew Companion",
-        "highlight_1": "Sanfte Pausenhinweise — trinken, strecken, wegschauen — in einem Intervall, das du wählst",
-        "highlight_2": "Erinnerungen, die du in normaler Sprache setzt, etwa „in 20 Minuten Wasser trinken“",
-        "highlight_3": "Eine kurze Atemübung zum Abschalten, wenn du sie brauchst",
-        "highlight_4": "Sagt dir, wenn eine Sitzung endet, fehlschlägt oder deine Zustimmung braucht",
-        "highlight_5": "Schwebt auf deinem Desktop, mit austauschbarem Avatar",
+        "highlight_1": "Eine Figur auf deinem Desktop für jede Sitzung, die arbeitet oder auf dich wartet",
+        "highlight_2": "Meldet sich, wenn ein Durchlauf fertig wird, fehlschlägt oder deine Zustimmung braucht — schlechte Nachrichten werden nie stummgeschaltet",
+        "highlight_3": "Klicke auf eine Figur, um die Crew-Ansicht zu öffnen und zu bestätigen, zu antworten oder genauer hinzusehen",
+        "highlight_4": "Sanfte Pausenhinweise und Erinnerungen, die du in normaler Sprache setzt, etwa „in 20 Minuten Wasser trinken“",
+        "highlight_5": "Eine kurze Atemübung und ein austauschbarer Avatar, den du importieren oder selbst zeichnen kannst",
         "page_label": "Crew Companion"
       },
       "memories": {
