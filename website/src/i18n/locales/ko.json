@@ -798,6 +798,10 @@
         "through_mouth": "입으로",
         "through_nose": "코로"
       },
+      "cast": {
+        "more_agents_other": "에이전트 {{count}}개가 더 실행 중",
+        "open_in_worlds": "에이전트 월드에서 {{name}} 열기"
+      },
       "color": {
         "belly": "배",
         "bodyFur": "몸 · 털",
