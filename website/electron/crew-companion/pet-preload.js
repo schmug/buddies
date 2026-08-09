@@ -90,24 +90,11 @@ contextBridge.exposeInMainWorld("crewCompanion", {
   },
 
   /**
-   * Report that the breathing exercise is running, so a click elsewhere does not
-   * close the panel and discard it.
-   */
-  panelBreathing(active) {
-    ipcRenderer.send("crew-companion:panel-breathing", Boolean(active));
-  },
-
-  /** Report that a destination view is open, for the same reason. */
-  panelHold(hold) {
-    ipcRenderer.send("crew-companion:panel-hold", Boolean(hold));
-  },
-
-  /**
    * The panel window has closed.
    *
-   * The companion needs this because the panel can be dismissed without it: a click
-   * elsewhere, Escape, or its own ✕. Without it the companion keeps thinking the panel
-   * is open, so the next click reads as "close" and it appears dead.
+   * The companion needs this because the panel can be dismissed without it: Escape or
+   * its own ✕, both handled inside the panel's window. Without it the companion keeps
+   * thinking the panel is open, so the next click reads as "close" and it appears dead.
    */
   onPanelClosed(cb) {
     const handler = () => cb();

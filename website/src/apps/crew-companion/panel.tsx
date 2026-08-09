@@ -5,11 +5,10 @@
  * companion's overlay, which is what makes it draggable independently: the heading
  * carries `-webkit-app-region: drag`, and the operating system moves the window.
  *
- * It owns the data the card renders (reminders, break cadence) and reports two things
- * back to the main process, because only this side knows them: whether the breathing
- * exercise is running, and whether a destination view is open. Both suppress
- * close-on-blur — losing a 48-second exercise or a half-read settings screen to a
- * stray click elsewhere would be hostile.
+ * It owns the data the card renders (reminders, break cadence). The window never
+ * closes on blur — losing a 48-second breathing exercise or a half-read settings
+ * screen to a stray click elsewhere would be hostile — so dismissing it is always
+ * Escape or the card's own ✕, and neither needs the main process to arbitrate.
  */
 import { StrictMode, useCallback, useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -34,8 +33,6 @@ const REFRESH_MS = 30_000
 
 interface PanelBridge {
   panelClose?(): void
-  panelBreathing?(active: boolean): void
-  panelHold?(hold: boolean): void
   /** Which side of the companion the panel opened on — aims the spring's origin. */
   onPanelOpened?(cb: (side: 'left' | 'right') => void): (() => void) | void
 }
@@ -111,20 +108,6 @@ function Panel() {
     })
     return () => { off?.() }
   }, [load])
-
-  /**
-   * Tell the main process when the panel must not close on blur.
-   *
-   * Reported from here because only this side knows: the exercise is a commitment,
-   * and a secondary view is a destination rather than a glance.
-   */
-  useEffect(() => {
-    bridge()?.panelBreathing?.(breathing)
-  }, [breathing])
-
-  useEffect(() => {
-    bridge()?.panelHold?.(view !== 'main')
-  }, [view])
 
   /** Escape closes the panel — but not while the exercise is running. */
   useEffect(() => {
