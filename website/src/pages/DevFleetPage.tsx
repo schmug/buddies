@@ -31,7 +31,7 @@ type Toast = { id: number; msg: string; type: 'success' | 'error' | 'info' }
 const _toastListeners = new Set<(t: Toast) => void>()
 let _toastSeq = 1
 
-function notify(msg: string, opts?: { type?: 'success' | 'error' | 'info' }) {
+export function notify(msg: string, opts?: { type?: 'success' | 'error' | 'info' }) {
   const t: Toast = { id: _toastSeq++, msg, type: opts?.type || 'info' }
   _toastListeners.forEach((fn) => fn(t))
   if (!_dispatch) return
@@ -45,6 +45,10 @@ function notify(msg: string, opts?: { type?: 'success' | 'error' | 'info' }) {
 
 /* ─── Constants ─── */
 const POLL_MS = 12000
+// Toast dwell time. Errors stay up longer: they name an action the operator has
+// to take, and re-reading them costs a round trip through the fleet.
+const TOAST_DISMISS_MS = 4000
+const TOAST_ERROR_DISMISS_MS = 7000
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 
 /* ─── Sync phase stepper model (marker protocol) ─── */
@@ -545,15 +549,29 @@ function DetailPanel({ w, d, busy, onRemove, onLoadLogs, logs, logsLoading }: { 
 }
 
 /* ═══════════ Main component ═══════════ */
-function ToastHost() {
+export function ToastHost() {
   const [toasts, setToasts] = useState<Toast[]>([])
   useEffect(() => {
+    // Every auto-dismiss timer belongs to THIS mount, so unmount has to cancel
+    // the ones still armed. A timer that outlives the host wakes up to a setState
+    // on a tree that no longer exists — and if the surrounding document went with
+    // it, the callback cannot even reach `window`, which raises out of band
+    // instead of failing anything a caller can see.
+    const dismissTimers = new Set<number>()
     const on = (t: Toast) => {
       setToasts((ts) => [...ts, t])
-      window.setTimeout(() => setToasts((ts) => ts.filter((x) => x.id !== t.id)), t.type === 'error' ? 7000 : 4000)
+      const timer = window.setTimeout(() => {
+        dismissTimers.delete(timer)
+        setToasts((ts) => ts.filter((x) => x.id !== t.id))
+      }, t.type === 'error' ? TOAST_ERROR_DISMISS_MS : TOAST_DISMISS_MS)
+      dismissTimers.add(timer)
     }
     _toastListeners.add(on)
-    return () => { _toastListeners.delete(on) }
+    return () => {
+      _toastListeners.delete(on)
+      dismissTimers.forEach((timer) => window.clearTimeout(timer))
+      dismissTimers.clear()
+    }
   }, [])
   if (!toasts.length) return null
   return (
