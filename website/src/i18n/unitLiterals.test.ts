@@ -435,16 +435,59 @@ describe('a number is never glued to a unit literal', () => {
     + 'digits — put it in a style/CSS position the detector recognises, or add the file '
     + 'to ROUND_TRIP in this test naming the parser.'
 
-  it(`holds at most ${BASELINE} un-migrated number+unit literal(s)`, () => {
-    const offenders: string[] = []
-    for (const file of files) {
-      const rel = relative(SRC, file).split('\\').join('/')
+  /**
+   * The ceiling is a whole-repo count, so it is MEASURED one file at a time and
+   * ASSERTED once. Two separate reasons force that split.
+   *
+   * The measurement is split because scanning the whole tree inside a single `it()`
+   * put the config-wide 15s `testTimeout` (`vite.config.ts`) around work that is
+   * linear in the tree and paced by the host. This gate asserts something about file
+   * *contents* and does not care how long reading them takes, yet the budget it
+   * inherited measured the MACHINE: identical source passed on an idle machine and
+   * failed with `Test timed out in 15000ms` when the rest of the suite ran alongside
+   * it. That is flake class 5 in `docs/system-specs/common/testing-conventions.md`
+   * § Determinism, and raising the budget is the fix that doc rules out by name.
+   * Per file the bounded unit is CONSTANT — one file, whatever the tree grows to —
+   * so the margin survives a loaded host and coverage instrumentation alike, and a
+   * file that is genuinely pathological to parse names itself when it trips.
+   *
+   * The assertion is NOT repeated per file because the count is cumulative: a single
+   * new site would put every case after it over the ceiling and turn the run into a
+   * wall of red pointing at innocent files. So the cases below carry only the cost,
+   * and the one after them carries the ceiling and does no I/O at all.
+   */
+  // Keyed by path rather than appended to, so a case that runs twice — a retry, a
+  // watch-mode re-run — overwrites its own contribution instead of double-counting
+  // the file and failing a ceiling the repo has not actually crossed.
+  const found = new Map<string, string[]>()
+
+  for (const file of files) {
+    const rel = relative(SRC, file).split('\\').join('/')
+    it(`[ceiling] scan ${rel}`, () => {
       const source = readFileSync(file, 'utf-8')
       const lines = source.split('\n')
-      for (const lineNo of unitLiteralHits(rel, source)) {
-        offenders.push(`${rel}:${lineNo}  ${(lines[lineNo - 1] ?? '').trim().slice(0, 120)}`)
-      }
-    }
+      found.set(
+        rel,
+        unitLiteralHits(rel, source).map(
+          (lineNo) => `${rel}:${lineNo}  ${(lines[lineNo - 1] ?? '').trim().slice(0, 120)}`,
+        ),
+      )
+    })
+  }
+
+  it(`holds at most ${BASELINE} un-migrated number+unit literal(s)`, () => {
+    // A run that scanned only part of the tree would under-count and report a
+    // ceiling it never actually measured, so refuse rather than go green on it.
+    // This is what keeps splitting the measurement from weakening the gate: the
+    // scan cases above run in declaration order, before this one, and any
+    // arrangement where they do not fails HERE instead of passing quietly.
+    expect(
+      found.size,
+      'the per-file scan cases did not all run, so this count covers only part of '
+      + 'the tree — run the whole file rather than a filtered subset of it.',
+    ).toBe(files.length)
+
+    const offenders = [...found.values()].flat()
 
     // UPWARD-ONLY, deliberately. An exact-equality assertion here would fail every
     // branch that FIXES a site and order it to come back and edit `BASELINE` — one
