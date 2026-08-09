@@ -26,6 +26,25 @@
  * module scope. `typescript` is already a
  * devDependency and the codemod already walks the AST for the same question, so the
  * correct tool is available.
+ *
+ * ## Why the scan is one case PER FILE
+ *
+ * This gate asserts something about file *contents*; it does not care how long the
+ * reading takes. Scanning the whole tree inside a single `it()` nevertheless put the
+ * config-wide 15s `testTimeout` (`vite.config.ts`) around work that is linear in the
+ * tree and paced by the host, so the budget measured the MACHINE rather than the
+ * code: identical source passed on an idle machine and failed with `Test timed out
+ * in 15000ms` when the rest of the suite ran alongside it. That is flake class 5 in
+ * `docs/system-specs/common/testing-conventions.md` § Determinism, and raising the
+ * budget is the fix that doc rules out by name — it banks the overhead as headroom
+ * and hides the next real regression.
+ *
+ * One case per file leaves the budget where it is and shrinks what it bounds to a
+ * CONSTANT: a single file, whatever the tree grows to. The margin stops being a few
+ * multiples of the whole-tree scan and becomes several thousand times one file's, so
+ * it survives both a loaded host and coverage instrumentation, and it no longer
+ * erodes as the codebase grows. A file that is genuinely pathological to parse still
+ * trips the clock, and it names itself when it does.
  */
 
 import { describe, it, expect } from 'vitest'
@@ -84,6 +103,13 @@ function moduleLevelCalls(file: string, source: string): number[] {
   return hits
 }
 
+const ADVICE =
+  'A module-scope `i18nT()` runs once at import, before the user has chosen a '
+  + 'language, and never re-runs — so the string freezes at the boot language. Move '
+  + 'the call inside the component or the render callback, or store the KEY in your '
+  + 'table and translate at render (see `labelKey` + `surfaceLabel()` in '
+  + '`surfaces/registry.ts`).'
+
 describe('i18nT is never evaluated at module load', () => {
   const files = walk(SRC).filter(
     (f) => !NOT_A_CALL_SITE.has(relative(SRC, f).split('\\').join('/')),
@@ -93,24 +119,19 @@ describe('i18nT is never evaluated at module load', () => {
     expect(files.length).toBeGreaterThan(300)
   })
 
-  it('no module-scope i18nT() call', () => {
-    const offenders: string[] = []
-    for (const file of files) {
-      const rel = relative(SRC, file).split('\\').join('/')
+  // One case per file — see the header for why the whole-tree scan was split up.
+  // The rule is per file to begin with (a file either holds a module-scope call or
+  // it does not), so nothing here is aggregated and a failure names its own file.
+  for (const file of files) {
+    const rel = relative(SRC, file).split('\\').join('/')
+    it(`no module-scope i18nT() call in ${rel}`, () => {
       const source = readFileSync(file, 'utf-8')
-      if (!source.includes('i18nT(')) continue
+      if (!source.includes('i18nT(')) return
       const lines = source.split('\n')
-      for (const lineNo of moduleLevelCalls(rel, source)) {
-        offenders.push(`${rel}:${lineNo}  ${(lines[lineNo - 1] ?? '').trim()}`)
-      }
-    }
-    expect(
-      offenders,
-      'A module-scope `i18nT()` runs once at import, before the user has chosen a '
-        + 'language, and never re-runs — so the string freezes at the boot language. Move '
-        + 'the call inside the component or the render callback, or store the KEY in your '
-        + 'table and translate at render (see `labelKey` + `surfaceLabel()` in '
-        + '`surfaces/registry.ts`).',
-    ).toEqual([])
-  })
+      const offenders = moduleLevelCalls(rel, source).map(
+        (lineNo) => `${rel}:${lineNo}  ${(lines[lineNo - 1] ?? '').trim()}`,
+      )
+      expect(offenders, ADVICE).toEqual([])
+    })
+  }
 })

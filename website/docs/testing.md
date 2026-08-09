@@ -112,6 +112,16 @@ are in
 The short version holds here too: never fix a flake with a rerun, a longer timeout,
 or a weakened assertion. Poll for the condition you actually care about.
 
+A gate that scans the whole `src/` tree — `src/i18n/moduleLevel.test.ts`,
+`src/i18n/unitLiterals.test.ts` — therefore runs **one case per file**. Those tests
+assert file *contents* and do not care how long reading them takes, but a whole-tree
+scan inside a single `it()` sits under the shared 15s `testTimeout`, so the budget
+ends up measuring the host rather than the code: both passed on an idle machine and
+timed out at the same commit with the rest of the suite running alongside. Keep the
+scanned unit one file, so what the clock bounds stays constant as the tree grows.
+Where the assertion is a whole-repo total, the cases carry the scan and a final
+case carries the count, guarded so a partial run fails instead of under-counting.
+
 ## Manual procedures
 
 A few flows are deliberately not automated. They are documented rather than
