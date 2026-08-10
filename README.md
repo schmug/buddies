@@ -863,6 +863,7 @@ make this tool possible:
 <a href="https://github.com/sarankota" title="Saran Kota"><img src="https://github.com/sarankota.png?size=64" width="64" height="64" alt="Saran Kota" /></a>
 <a href="https://github.com/sauravgpt" title="Saurav Kumar Gupta"><img src="https://github.com/sauravgpt.png?size=64" width="64" height="64" alt="Saurav Kumar Gupta" /></a>
 <a href="https://github.com/schebotarev" title="schebotarev"><img src="https://github.com/schebotarev.png?size=64" width="64" height="64" alt="schebotarev" /></a>
+<a href="https://github.com/schmug" title="schmug"><img src="https://github.com/schmug.png?size=64" width="64" height="64" alt="schmug" /></a>
 <a href="https://github.com/scuthbert" title="Sam Cuthbertson"><img src="https://github.com/scuthbert.png?size=64" width="64" height="64" alt="Sam Cuthbertson" /></a>
 <a href="https://github.com/SebastianYuSun" title="Sebastian (Yu) Sun"><img src="https://github.com/SebastianYuSun.png?size=64" width="64" height="64" alt="Sebastian (Yu) Sun" /></a>
 <a href="https://github.com/Setul0712" title="Setul0712"><img src="https://github.com/Setul0712.png?size=64" width="64" height="64" alt="Setul0712" /></a>
