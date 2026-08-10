@@ -242,11 +242,10 @@ describe('pet.tsx cast wiring', () => {
     expect(SOURCE).toContain("if (petStateRef.current !== 'idle') return")
   })
 
-  it('replays the head-cock while an agent waits on the user', () => {
-    expect(SOURCE).toContain('ATTENTION_REPLAY_MS')
-    expect(SOURCE).toContain('if (cockingRef.current) bumpReaction()')
-    expect(SOURCE).toContain("cockingRef.current = activeAnim === 'curious' && !reducedMotion")
-  })
+  // The head-cock replay is pinned behaviourally, on the remount that IS the
+  // mechanism, in CrewCompanionAttentionReplay.test.tsx — a source-text match here
+  // would go stale on a rename while the feature still worked, and would keep
+  // passing if the remount stopped happening.
 
   it('stops idle fidgets while the crew is already moving the body', () => {
     // activeAnimFor only surfaces a fidget while the motion state is idle, so without
