@@ -42,19 +42,8 @@ let baseUrl = "";
 let credential = "";
 let log = () => {};
 
-/**
- * True while the breathing exercise is running.
- *
- * Kept because the renderer reports it and it stands the desktop companion aside, so
- * its copy and the overlay's are never on screen together.
- */
-let breathingActive = false;
-
 /** Told when the panel closes, so the companion can reset its own state. */
 let onClosed = null;
-
-/** True while a secondary view (full list / settings) is open. */
-let holdOpen = false;
 
 function setPanelTarget(url, token) {
   baseUrl = url || "";
@@ -144,8 +133,6 @@ function openPanelWindow(petRect) {
 
   panelWin.on("closed", () => {
     panelWin = null;
-    breathingActive = false;
-    holdOpen = false;
     if (onClosed) onClosed();
   });
 
@@ -156,8 +143,6 @@ function closePanelWindow() {
   const was = Boolean(panelWin && !panelWin.isDestroyed());
   if (was) panelWin.destroy();
   panelWin = null;
-  breathingActive = false;
-  holdOpen = false;
   // `destroy()` does not always deliver 'closed' synchronously, and the companion must
   // not be left believing the panel is still up.
   if (was && onClosed) onClosed();
@@ -173,14 +158,6 @@ function registerPanelIpc() {
     if (petRect && typeof petRect.x === "number") openPanelWindow(petRect);
   });
   ipcMain.on("crew-companion:panel-close", () => closePanelWindow());
-  // The renderer tells us when the exercise starts and stops, because only it knows
-  // — and without that the first click elsewhere would discard the session.
-  ipcMain.on("crew-companion:panel-breathing", (_event, active) => {
-    breathingActive = Boolean(active);
-  });
-  ipcMain.on("crew-companion:panel-hold", (_event, hold) => {
-    holdOpen = Boolean(hold);
-  });
 }
 
 module.exports = {

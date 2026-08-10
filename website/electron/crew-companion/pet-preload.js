@@ -40,9 +40,14 @@ contextBridge.exposeInMainWorld("crewCompanion", {
   /**
    * Report the context menu's rect while it is open, or null when it closes.
    *
-   * Added as one more interactive hitbox so the menu is clickable while the rest of
-   * the desktop stays click-through — no more making the whole window interactive
-   * for the menu's lifetime.
+   * The rect the renderer sends is the WHOLE viewport, for the menu's lifetime: a
+   * menu is a modal moment, and a rect covering only the menu's own box means a
+   * click just OUTSIDE it is forwarded to the desktop, never reaches the page, and
+   * the close-on-outside listener never fires — a menu that cannot be dismissed.
+   * Its own channel rather than a fourth `updateHitbox` argument because the main
+   * process MERGES it with the companion/bubble/cast rects; replacing them would
+   * make the companion and every cast sprite click-through while the menu is up.
+   * Null on close drops it, so no full-screen hitbox outlives the menu.
    *
    * @param {{x:number,y:number,w:number,h:number}|null} rect
    */
@@ -85,24 +90,11 @@ contextBridge.exposeInMainWorld("crewCompanion", {
   },
 
   /**
-   * Report that the breathing exercise is running, so a click elsewhere does not
-   * close the panel and discard it.
-   */
-  panelBreathing(active) {
-    ipcRenderer.send("crew-companion:panel-breathing", Boolean(active));
-  },
-
-  /** Report that a destination view is open, for the same reason. */
-  panelHold(hold) {
-    ipcRenderer.send("crew-companion:panel-hold", Boolean(hold));
-  },
-
-  /**
    * The panel window has closed.
    *
-   * The companion needs this because the panel can be dismissed without it: a click
-   * elsewhere, Escape, or its own ✕. Without it the companion keeps thinking the panel
-   * is open, so the next click reads as "close" and it appears dead.
+   * The companion needs this because the panel can be dismissed without it: Escape or
+   * its own ✕, both handled inside the panel's window. Without it the companion keeps
+   * thinking the panel is open, so the next click reads as "close" and it appears dead.
    */
   onPanelClosed(cb) {
     const handler = () => cb();

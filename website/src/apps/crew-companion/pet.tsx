@@ -123,9 +123,7 @@ declare global {
       /** Open the panel window beside the companion, in screen coordinates. */
       panelOpen(petRect: { x: number; y: number; width: number; height: number }): void
       panelClose(): void
-      /** Suppress the panel's close-on-blur while this is true. */
-      panelHold(hold: boolean): void
-      /** Fires when the panel window closes on its own — blur, Escape or its ✕. */
+      /** Fires when the panel window closes on its own — Escape or its ✕. */
       onPanelClosed(cb: () => void): () => void
       galleryOpen(): void
       /** Fires when the avatar gallery window opens / closes, so the companion can
@@ -289,12 +287,6 @@ function Companion() {
   })
   const motionEnabledRef = useRef(true)
   motionEnabledRef.current = isDefaultPack
-  useEffect(() => {
-    const release = () => window.crewCompanion?.panelHold?.(false)
-    // Window-level: a drag usually ends with the pointer well away from the companion.
-    window.addEventListener('mouseup', release)
-    return () => window.removeEventListener('mouseup', release)
-  }, [])
 
   const facingRightRef = useRef(false)
   const { poke } = usePlayfulMotion(artRef, playActiveRef, motionEnabledRef, facingRightRef)
@@ -494,10 +486,12 @@ function Companion() {
   /**
    * Follow the panel window's own lifecycle.
    *
-   * It closes on click-away, Escape and its ✕ without going through `closePanel`, so
-   * without this the companion keeps believing the panel is open: the next click reads
-   * as "close" and nothing appears, and the overlay stays focusable — a full-display
-   * always-on-top window that can take focus and swallow clicks meant for other apps.
+   * It closes on Escape and on its own ✕, both handled INSIDE the panel's window and
+   * so never through `closePanel`. Without this notification the companion keeps
+   * believing the panel is open: the next click reads as "close" and nothing appears,
+   * and the overlay stays focusable — a full-display always-on-top window that can
+   * take focus and swallow clicks meant for other apps. It does NOT close on
+   * click-away; dismissing it is always deliberate.
    */
   useEffect(() => {
     return window.crewCompanion?.onPanelClosed?.(() => {
@@ -1256,16 +1250,6 @@ function Companion() {
         className="cc-pet"
         onMouseDown={(e) => {
           clickDownPt.current = { x: e.clientX, y: e.clientY }
-          /*
-           * Hold the panel open from the PRESS, not from `isDragging`.
-           *
-           * The panel closes on blur like a popover, and grabbing the companion focuses
-           * the overlay — which blurs the panel immediately. `isDragging` only turns
-           * true once the pointer crosses the drag threshold, so holding on it arrived
-           * after the panel had already gone. Grabbing the companion is not "clicking
-           * elsewhere", so the hold starts here and is released on mouseup.
-           */
-          window.crewCompanion?.panelHold?.(true)
           if (isWalking) cancelWalk()
           onMouseDown(e)
         }}

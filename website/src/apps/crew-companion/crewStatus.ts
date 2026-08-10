@@ -4,8 +4,9 @@
  * Every rule about agent state lives here: which state an agent is in, which state
  * the pet should wear when several disagree, who earns a sprite on the desktop, and
  * how many is too many. Nothing here knows about sockets, React, or the DOM, so both
- * surfaces — the overlay (its own WebSocket, no store) and the dashboard SPA (Redux +
- * SSE) — can feed it from the transport they already have and still agree.
+ * surfaces — the overlay (its own WebSocket, no store) and the dashboard SPA (Redux,
+ * fed by the dashboard WebSocket) — can feed it from the transport they already have
+ * and still agree.
  *
  * The same split as walkMath / bubbleLayout / petAnim / completionGate, for the same
  * reason: the rules are the part worth testing, and they should not need a browser.
