@@ -77,6 +77,48 @@ describe('PetCastScene', () => {
     }
   })
 
+  /**
+   * The other half of that guard: the epoch reaches ONLY the character wearing the
+   * held one-shot.
+   *
+   * `kg-curious` is a one-shot and needs re-triggering; `ponder-loop` is `infinite`
+   * and does not. Remounting a looping motion restarts it at 0% from whatever phase
+   * it had reached, so handing the epoch to every character would make each `running`
+   * one stutter once per interval — the cost paid by the many to re-trigger the one.
+   *
+   * Asserted on node identity, and it has to be: the class name is invariant across a
+   * replay, so a `kg-anim-ponder-loop` assertion holds just as well on a sprite that
+   * churns every interval as on one that is never touched.
+   */
+  it('never churns a busy character while replaying the one beside it', () => {
+    const animSpan = (id: string) => screen
+      .getByRole('button', { name: new RegExp(`Session ${id}`) })
+      .querySelector('span[aria-hidden] > span')
+
+    vi.useFakeTimers()
+    try {
+      renderWithProviders(
+        <PetCastScene
+          agents={[src('slot-busy', { running: true }), src('slot-wait', { waitingForInput: true })]}
+          visible
+        />,
+      )
+      const busy = animSpan('slot-busy')
+      const waiting = animSpan('slot-wait')
+      expect(busy?.className).toContain('kg-anim-ponder-loop')
+      expect(waiting?.className).toContain('kg-anim-curious')
+
+      act(() => { vi.advanceTimersByTime(ATTENTION_REPLAY_MS * 3) })
+
+      expect(animSpan('slot-busy')).toBe(busy)
+      // Paired deliberately: without this, withholding the epoch from EVERY character
+      // — which silences the replay the scene exists to run — would also pass.
+      expect(animSpan('slot-wait')).not.toBe(waiting)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('runs no replay timer while the scene is hidden', () => {
     // Nine scenes stay mounted at once and a hidden one draws no avatar, so a timer
     // bumping an epoch nothing reads would be pure waste.
