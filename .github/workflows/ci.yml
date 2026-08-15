@@ -201,7 +201,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      - uses: astral-sh/setup-uv@ae62891fec2bb8e7d6c99fc78c9fec3a63790f8d # v10.0.0
         with:
           enable-cache: true
           # This repo has no uv.lock (pip/pyproject-managed), so point the
@@ -259,7 +259,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      - uses: astral-sh/setup-uv@ae62891fec2bb8e7d6c99fc78c9fec3a63790f8d # v10.0.0
         with:
           enable-cache: true
           # This repo has no uv.lock (pip/pyproject-managed), so point the
@@ -412,7 +412,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      - uses: astral-sh/setup-uv@ae62891fec2bb8e7d6c99fc78c9fec3a63790f8d # v10.0.0
         with:
           enable-cache: true
           # Same no-uv.lock caveat as backend-test: key the cache on the
@@ -503,7 +503,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      - uses: astral-sh/setup-uv@ae62891fec2bb8e7d6c99fc78c9fec3a63790f8d # v10.0.0
         with:
           enable-cache: true
           # Same no-uv.lock caveat as backend-test: key the cache on the files
@@ -563,7 +563,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      - uses: astral-sh/setup-uv@ae62891fec2bb8e7d6c99fc78c9fec3a63790f8d # v10.0.0
         with:
           enable-cache: true
           cache-dependency-glob: |
@@ -604,7 +604,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      - uses: astral-sh/setup-uv@ae62891fec2bb8e7d6c99fc78c9fec3a63790f8d # v10.0.0
         with:
           enable-cache: true
           cache-dependency-glob: |
